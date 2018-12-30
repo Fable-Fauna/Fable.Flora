@@ -1,5 +1,5 @@
 // ts2fable 0.6.1
-namespace Fable.Tailwind
+namespace Fable.CssClassProvider
 open System
 open Fable.Core
 open Fable.Import.JS
@@ -10,12 +10,12 @@ open ProviderImplementation.ProvidedTypes
 
 
 [<TypeProvider>]
-type public TailWind (config : TypeProviderConfig) as this =
+type public Css (config : TypeProviderConfig) as this =
     inherit TypeProviderForNamespaces (config)
     let asm = System.Reflection.Assembly.GetExecutingAssembly()
 
     do
-        let ns = "Fable.Tailwind"
+        let ns = "Fable.CssClassProvider"
         let generator = ProvidedTypeDefinition(asm, ns, "TailWind", Some typeof<obj>)
        
         let staticProp = ProvidedProperty(propertyName = "StaticProperty", 

@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>0.0.1</Version>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="main.fs" />
+    <ProjectReference Include="..\src\Fable.Flora.fsproj">
+      <Name>Fable.Flora.fsproj</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="*.fsproj; *.fs" PackagePath="fable\" />
+    <Compile Include="main.fs" />
+    <Content Include="*.fsproj; *.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Fable.Flora">

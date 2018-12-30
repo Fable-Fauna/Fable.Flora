@@ -85,15 +85,12 @@ type Class =
     {   
         Name : string
         Class : string option
-        Children : string [] option
+        Children : Class list option
     }
 
 
 
 module Generators =
-
-    let nClass name cls =
-        {Name = name; Class = Some(cls); Children = None}
 
     let (|SplitClass|_|) (str : string) : (string * string) option =
         let r = str.Split '-'
@@ -103,18 +100,84 @@ module Generators =
             Some(r.[0], String.concat "-" (Array.skip 1 r))
         else None
 
+    let nClass name cls =
+        {Name = name; Class = Some(cls); Children = None}
+
+    let rec rClass str =
+        match str with
+        | SplitClass(x,y) -> {Name = x; Class = Some(x); Children = Some([rClass y]) }
+        | _ -> nClass str str
+
+    
+
     let generate_tailwind_config (config : TailwindConfig) (modules : TailwindModules) : string =
         ""
 
-    let generate_background_colors (config :TailwindConfig) (modes :string []) : Class [] =
-        let clrs = 
-            config.Colors 
-            |> Array.map (fun (cls,_) -> 
-                match cls with
-                | SplitClass(x,y) -> {Name = x; Class = x; Children = Some(clrs) }
-                | _ -> nClass cls cls)
-        let bg = {Name = "background"; Class = None; Children = Some(clrs)}
-        
+    let gen_appearance (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_backgroundAttachment (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_backgroundColors (config :TailwindConfig) (modes :string list) : Class = 
+        let gen_colors name =
+            {Name = name; Class = None; Children = Some(config.Colors |> Seq.map (fun (cls,_) -> rClass cls) |> Seq.toList)}
+        let clss = modes |> List.collect (fun x -> 
+            match x with
+            | "responsive" -> config.Colors |> Array.map (fun (cls,_) -> rClass cls) |> Array.toList
+            | "hover" -> [gen_colors "hover"]
+            | "focus" -> [gen_colors "focus"])
+        {Name = "background"; Class = None; Children = Some(clss)}
+    let gen_backgroundPosition (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_backgroundRepeat (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_backgroundSize (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_borderCollapse (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_borderColors (config :TailwindConfig) (modes :string list) : Class = 
+        let gen_colors name =
+            {Name = name; Class = None; Children = Some(config.Colors |> Seq.map (fun (cls,_) -> rClass cls) |> Seq.toList)}
+        let clss = modes |> List.collect (fun x -> 
+            match x with
+            | "responsive" -> config.Colors |> Array.map (fun (cls,_) -> rClass cls) |> Array.toList
+            | "hover" -> [gen_colors "hover"]
+            | "focus" -> [gen_colors "focus"])
+        {Name = "border"; Class = None; Children = Some(clss)}
+
+    let gen_borderRadius (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_borderStyle (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_borderWidths (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_cursor (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_display (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_flexbox (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_float (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_fonts (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_fontWeights (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_height (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_leading (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_margin (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_maxHeight (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_maxWidth (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_minHeight (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_minWidth (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_lists (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_negativeMargin (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_opacity (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_outline (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_overflow (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_padding (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_pointerEvents (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_position (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_resize (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_shadows (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_svgFill (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_svgStroke (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_tableLayout (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_textAlign (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_textColors (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_textSizes (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_textStyle (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_tracking (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_userSelect (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_verticalAlign (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_visibility (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_whitespace (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_width (config :TailwindConfig) (modes :string list) : Class list = []
+    let gen_zIndex (config :TailwindConfig) (modes :string list) : Class list = []
 
 module Example =
     [<Literal>]

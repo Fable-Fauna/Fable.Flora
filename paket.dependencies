@@ -12,6 +12,7 @@ nuget Fable.Elmish.React
 nuget Fable.Elmish.Browser
 nuget Fable.Elmish.Debugger
 nuget Fable.PowerPack
+nuget FParsec
 
 group netcorebuild
     storage:none
@@ -28,3 +29,4 @@ group netcorebuild
     nuget Fake.Core.ReleaseNotes
     nuget Fake.IO.FileSystem
     nuget Fake.Tools.Git
+nuget Expecto
