@@ -7,6 +7,17 @@ open CssProvider
 open Parser
 open System.IO
 
+
+[<Fact>]
+let ``parse class`` () =
+  let testText = " .class"
+  let result = run parseClass testText
+  let success =
+      match result with
+      | Success(z,_,_) -> true
+      | Failure(_,_,_) -> false
+  Assert.True success
+
 [<Fact>]
 let ``stuff`` () =
     let testText = "div .class #id p { margin: 0 auto; } * .btn #foo { background-color: red; }"

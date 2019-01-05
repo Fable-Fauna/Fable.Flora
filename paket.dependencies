@@ -13,6 +13,9 @@ nuget Fable.Elmish.Browser
 nuget Fable.Elmish.Debugger
 nuget Fable.PowerPack
 nuget FParsec
+nuget Microsoft.NET.Test.Sdk
+nuget xunit
+nuget xunit.runner.visualstudio
 
 group netcorebuild
     storage:none

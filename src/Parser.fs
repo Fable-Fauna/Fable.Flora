@@ -1,7 +1,7 @@
 namespace CssProvider
 open System
 open FParsec
-open Tailwind
+
 
 module Parser =
 
