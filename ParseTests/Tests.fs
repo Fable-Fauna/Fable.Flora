@@ -7,26 +7,62 @@ open CssProvider
 open Parser
 open System.IO
 
-
-[<Fact>]
-let ``parse class`` () =
-  let testText = " .class"
-  let result = run parseClass testText
+let assert_success result =
   let success =
       match result with
       | Success(z,_,_) -> true
       | Failure(_,_,_) -> false
   Assert.True success
+    
 
-[<Fact>]
-let ``stuff`` () =
-    let testText = "div .class #id p { margin: 0 auto; } * .btn #foo { background-color: red; }"
-    let result = run parseCss testText 
-    let success =
-      match result with
-      | Success(z,_,_) -> true
-      | Failure(_,_,_) -> false
-    Assert.True success
+[<Theory>]
+[<InlineData("*")>]
+[<InlineData("")>]
+[<InlineData("|*")>]
+[<InlineData("*|*")>]
+[<InlineData("juice|*")>]
+[<InlineData("*|div")>]
+[<InlineData("juice|div")>]
+[<InlineData("|div")>]
+[<InlineData("div")>]
+let ``type selector`` (str : string) =
+    let result = run parseTypeSelector str
+    assert_success result
+
+[<Theory>]
+[<InlineData("*.class")>]
+[<InlineData(".class")>]
+[<InlineData("|*#prop")>]
+[<InlineData("*|*")>]
+[<InlineData("juice|*")>]
+[<InlineData("*|div.class")>]
+[<InlineData("juice|div#prop")>]
+[<InlineData("|div.class.class")>]
+[<InlineData("div")>]
+let ``simple selector seq`` (str : string) =
+    let result = run parseTypeSelector str
+    assert_success result
+
+[<Theory>]
+[<InlineData("*.class")>]
+[<InlineData(".class")>]
+[<InlineData("juice|div + *")>]
+[<InlineData("|div * juice|div")>]
+[<InlineData("div > div")>]
+let ``selector with cominators`` (str : string) =
+    let result = run parseSelector str
+    assert_success result
+
+[<Theory>]
+[<InlineData("*.class")>]
+[<InlineData(".class")>]
+[<InlineData("juice|div + *")>]
+[<InlineData("|div * juice|div")>]
+[<InlineData("{ }")>]
+let ``parse rules`` (str : string) =
+    let result = run parseSelector str
+    assert_success result
+
 
 
 [<Fact>]

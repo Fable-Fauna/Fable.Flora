@@ -5,7 +5,14 @@ open FParsec
 
 module Parser =
 
+    type NamespaceSelector =
+        | All
+        | Empty
+        | Name of string
 
+    type ElementSelector =
+        | All
+        | Name of string
 
     type Combinator =
         | Desendent //*
@@ -16,8 +23,9 @@ module Parser =
         SelectorSeq list
 
     and TypeSelector =
-        | Type of string option * string
-        | Universial of string option
+        { Element : ElementSelector
+          Namespace : NamespaceSelector}
+
 
     and SimpleSelector =
         | Class of string
@@ -36,37 +44,60 @@ module Parser =
         SelectorGroup list * Rule list    
 
 
+    //OTHER
 
+    let parseComment =
+        skipString "/*" >>. skipCharsTillStringCI "*/" true Int32.MaxValue
+
+    let whitespace =
+        spaces 
+        <|> parseComment >>. spaces
+
+
+    //SELECTORS
     let identifier = (satisfy isLetter <|> pchar '-') |> many1Chars
 
-    let parseClass = spaces >>. pchar '.' >>. identifier |>> Class
+    let parseClass = pchar '.' >>. identifier |>> Class
 
-    let parseId = spaces >>. pchar '#' >>. identifier |>> Id
+    let parseId = pchar '#' >>. identifier |>> Id
 
     let parseSimpleSelector = attempt parseClass <|> attempt parseId
 
-    let parseUniversial = 
-        (attempt (identifier .>> pchar '|') .>> (pchar '*') |>> Some
-        <|> (spaces >>. pchar '*' >>% None)) |>> Universial
+    let parseNamespaceSelector =
+        attempt identifier |>> NamespaceSelector.Name
+        <|> (attempt (pchar '*') >>% NamespaceSelector.All)
+        <|> (preturn NamespaceSelector.Empty)
 
-    let parseType =
-        ((attempt identifier) |>> Some) <|> (pchar '*' >>% None) .>> pchar '|' .>>. identifier
-        |>> Type
+    let parseElementSelector = 
+        attempt identifier |>> ElementSelector.Name
+        <|> (pchar '*' >>% ElementSelector.All)
+
+
+    let parseTypeSelector = 
+        attempt ((parseNamespaceSelector .>> pchar '|') .>>. parseElementSelector |>> (fun (x,y) -> { Element = y; Namespace = x}))
+        <|> (parseElementSelector |>> (fun x -> { Namespace = NamespaceSelector.All; Element = x}))
+        <|> (preturn { Namespace = NamespaceSelector.All; Element = ElementSelector.All } )
+
+        
 
     let parseSelectorSeq = 
-        (attempt parseType <|> parseUniversial) .>>. many parseSimpleSelector |>> SelectorSeq
+        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
 
 
     let parseCombinator =
-        (satisfy (isAnyOf ['>';'*';'+'])) .>> spaces |>> (function | '>' -> Child | '*' -> Desendent | '+' -> Next )
+        (satisfy (isAnyOf ['>';'*';'+'])) |>> (function | '>' -> Child | '*' -> Desendent | '+' -> Next )
 
 
     let parseSelector =     //combinator selectorSeq
-        sepBy1 parseSelectorSeq parseCombinator
+        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
 
     let parseSelectorGroup = 
-        sepBy1 parseSelector (pchar ',' .>> spaces)
+        sepBy1 parseSelector (pchar ',' .>> whitespace)
     
+
+
+
+    //RULES
 
     let ruleValue =  (satisfy <| fun c -> c <> ';') |> many1Chars
 

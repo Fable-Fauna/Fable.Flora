@@ -9,8 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="Parsing.fs" />
-    <Compile Include="Tailwind.fs" />
     <Compile Include="CssProvider.fs" />
     <Compile Include="Parser.fs" />
   </ItemGroup>
