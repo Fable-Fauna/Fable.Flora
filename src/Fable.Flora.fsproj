@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>0.0.1</Version>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <DefineConstants>$(DefineConstants);NETSTANDARD2_0;NO_GENERATIVE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="Parsing.fs" />
-    <Compile Include="Tailwind.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="*.fsproj; *.fs" PackagePath="fable\" />
+    <Compile Include="CssProvider.fs" />
+    <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
