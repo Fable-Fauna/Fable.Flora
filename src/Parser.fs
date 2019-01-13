@@ -19,6 +19,14 @@ module Parser =
         | Child // >
         | Next // +
 
+    and Match =
+        | Includes // ~=
+        | Dash // |=
+        | Prefix // ^=
+        | Suffix // $=
+        | Substring // *=
+        | Equal // =
+
     and SelectorGroup =
         SelectorSeq list
 
@@ -41,7 +49,7 @@ module Parser =
         string * string
 
     and Definition =
-        SelectorGroup list * Rule list    
+        SelectorGroup list  
 
 
     //OTHER
@@ -50,8 +58,9 @@ module Parser =
         skipString "/*" >>. skipCharsTillStringCI "*/" true Int32.MaxValue
 
     let whitespace =
-        spaces 
-        <|> parseComment >>. spaces
+        attempt (spaces .>> parseComment >>. spaces)
+        <|> 
+        spaces
 
 
     //SELECTORS
@@ -61,22 +70,42 @@ module Parser =
 
     let parseId = pchar '#' >>. identifier |>> Id
 
-    let parseSimpleSelector = attempt parseClass <|> attempt parseId
 
     let parseNamespaceSelector =
-        attempt identifier |>> NamespaceSelector.Name
-        <|> (attempt (pchar '*') >>% NamespaceSelector.All)
-        <|> (preturn NamespaceSelector.Empty)
+        ((identifier |>> NamespaceSelector.Name 
+        <|> (pchar '*' >>% NamespaceSelector.All)
+        <|> preturn NamespaceSelector.Empty)
+        .>> pchar '|') 
+        <|> preturn NamespaceSelector.All
 
     let parseElementSelector = 
-        attempt identifier |>> ElementSelector.Name
+        identifier |>> ElementSelector.Name
         <|> (pchar '*' >>% ElementSelector.All)
-
+        <|> preturn ElementSelector.All
 
     let parseTypeSelector = 
-        attempt ((parseNamespaceSelector .>> pchar '|') .>>. parseElementSelector |>> (fun (x,y) -> { Element = y; Namespace = x}))
-        <|> (parseElementSelector |>> (fun x -> { Namespace = NamespaceSelector.All; Element = x}))
-        <|> (preturn { Namespace = NamespaceSelector.All; Element = ElementSelector.All } )
+        parseNamespaceSelector .>>. parseElementSelector 
+        |>> (fun (x,y) -> { Element = y; Namespace = x})
+        
+
+    let parseMatch =
+        (pstring "~=" >>% Match.Includes)
+        <|> (pstring "|=" >>% Match.Dash)
+        <|> (pstring "^=" >>% Match.Prefix)
+        <|> (pstring "$=" >>% Match.Suffix)
+        <|> (pstring "*=" >>% Match.Substring)
+        <|> (pchar '=' >>% Match.Equal)
+
+   
+    let parseAttribute =
+        pchar '[' >>. whitespace >>. parseNamespaceSelector .>>. identifier .>> whitespace
+        .>>. opt (parseMatch .>> whitespace  .>>. identifier (* or string*) ) .>> whitespace .>> pchar ']'
+    //parse pseudo
+
+    //parse negation
+
+
+    let parseSimpleSelector = attempt parseClass <|> attempt parseId
 
         
 
@@ -85,28 +114,26 @@ module Parser =
 
 
     let parseCombinator =
-        (satisfy (isAnyOf ['>';'*';'+'])) |>> (function | '>' -> Child | '*' -> Desendent | '+' -> Next )
+        (pchar '>' >>% Child)
+        <|> (pchar '*' >>% Desendent)
+        <|> (pchar '+' >>% Next)
+        
 
-
-    let parseSelector =     //combinator selectorSeq
+    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
         sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
 
-    let parseSelectorGroup = 
-        sepBy1 parseSelector (pchar ',' .>> whitespace)
+    let parseSelectorGroup  = 
+        sepBy1 parseSelector (pchar ',' .>> whitespace) 
     
 
 
 
     //RULES
 
-    let ruleValue =  (satisfy <| fun c -> c <> ';') |> many1Chars
-
-    let parseRule =
-        (identifier .>> spaces) .>>. (pchar ':' >>. spaces >>. ruleValue .>> spaces .>> pchar ';') |>> Rule
-
-    let parseDefinition =
-        (parseSelectorGroup .>> spaces) .>>. (pchar '{' >>. spaces >>. many parseRule .>> spaces .>> pchar '}') |>> Definition
+ 
+    let parseDefinition :Parser<Definition,unit> =
+        (parseSelectorGroup .>> whitespace) .>> (pchar '{' >>. skipCharsTillStringCI "}" true Int32.MaxValue) 
         
     let parseCss : Parser<Definition list, unit>= 
-        many1 (attempt parseDefinition)
+        many1 (attempt (whitespace >>. parseDefinition))
 

@@ -53,35 +53,38 @@ let ``selector with cominators`` (str : string) =
     let result = run parseSelector str
     assert_success result
 
-[<Theory>]
-[<InlineData("*.class")>]
-[<InlineData(".class")>]
-[<InlineData("juice|div + *")>]
-[<InlineData("|div * juice|div")>]
-[<InlineData("{ }")>]
-let ``parse rules`` (str : string) =
-    let result = run parseSelector str
+[<Fact>]
+let ``parse sample`` () =
+    let str = 
+        " code, kbd, samp {
+          font-family: monospace, monospace; /* 1 */
+          font-size: 1em; /* 2 */
+        } "
+    let result = run parseDefinition str
     assert_success result
 
+[<Fact>]
+let ``parse sample 2`` () =
+    let str = 
+        " /*
+         * Add the correct display in Edge, IE 10+, and Firefox.
+         */
 
+        details {
+          display: block;
+        }"
+    let result = run parseDefinition str
+    assert_success result
 
 [<Fact>]
 let ``tailwind`` () =
     let testText = File.ReadAllText("../../../../test/tailwind.css")
     let result = run parseCss testText 
-    let success =
-      match result with
-      | Success(z,_,_) -> true
-      | Failure(_,_,_) -> false
-    Assert.True success
+    assert_success result
 
 
 [<Fact>]
 let ``bootstrap`` () =
     let testText = File.ReadAllText("../../../../test/bootstrap.css")
     let result = run parseCss testText 
-    let success =
-      match result with
-      | Success(z,_,_) -> true
-      | Failure(_,_,_) -> false
-    Assert.True success
+    assert_success result
