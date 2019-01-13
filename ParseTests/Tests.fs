@@ -53,6 +53,15 @@ let ``selector with cominators`` (str : string) =
     let result = run parseSelector str
     assert_success result
 
+
+[<Theory>]
+[<InlineData("*.class[dude = 'balh']")>]
+[<InlineData("*.class[dude = \"balh\"]")>]
+[<InlineData("div[blah|id ~= id]")>]
+let ``selector with attributes`` (str : string) =
+    let result = run parseSelector str
+    assert_success result
+
 [<Fact>]
 let ``parse sample`` () =
     let str = 

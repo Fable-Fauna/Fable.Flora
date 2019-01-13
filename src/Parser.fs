@@ -3,6 +3,18 @@ open System
 open FParsec
 
 
+module Tokens =
+
+    let comment :Parser<unit,unit> =
+        skipString "/*" >>. skipCharsTillStringCI "*/" true Int32.MaxValue
+
+    let newLine :Parser<unit,unit> =
+        newline >>% ()
+        <|>
+        skipChar '\f'
+
+        
+
 module Parser =
 
     type NamespaceSelector =
@@ -38,9 +50,11 @@ module Parser =
     and SimpleSelector =
         | Class of string
         | Id of string
-        | Attribute of string //[]
+        | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
         | PsudoClass of string //ident
-        | PsudoElement of string //ident    
+        | PsudoElement of string //ident 
+        | Negation of SimpleSelector
+        | TypeSelector of TypeSelector
 
     and SelectorSeq =
         TypeSelector * SimpleSelector list    
@@ -55,16 +69,20 @@ module Parser =
     //OTHER
 
     let parseComment =
-        skipString "/*" >>. skipCharsTillStringCI "*/" true Int32.MaxValue
+        pstring "/*" >>. charsTillString "*/" true Int32.MaxValue |>> ignore
 
     let whitespace =
-        attempt (spaces .>> parseComment >>. spaces)
-        <|> 
-        spaces
+        spaces .>> opt (skipMany (parseComment .>> spaces))
+
 
 
     //SELECTORS
     let identifier = (satisfy isLetter <|> pchar '-') |> many1Chars
+
+    let istring = 
+        (pchar '"' >>. identifier .>> pchar '"')
+        <|>
+        (pchar ''' >>. identifier .>> pchar ''')
 
     let parseClass = pchar '.' >>. identifier |>> Class
 
@@ -72,10 +90,11 @@ module Parser =
 
 
     let parseNamespaceSelector =
-        ((identifier |>> NamespaceSelector.Name 
-        <|> (pchar '*' >>% NamespaceSelector.All)
-        <|> preturn NamespaceSelector.Empty)
-        .>> pchar '|') 
+        attempt (
+            (identifier |>> NamespaceSelector.Name 
+            <|> (pchar '*' >>% NamespaceSelector.All)
+            <|> preturn NamespaceSelector.Empty)
+            .>> pchar '|') 
         <|> preturn NamespaceSelector.All
 
     let parseElementSelector = 
@@ -87,7 +106,7 @@ module Parser =
         parseNamespaceSelector .>>. parseElementSelector 
         |>> (fun (x,y) -> { Element = y; Namespace = x})
         
-
+         
     let parseMatch =
         (pstring "~=" >>% Match.Includes)
         <|> (pstring "|=" >>% Match.Dash)
@@ -99,13 +118,38 @@ module Parser =
    
     let parseAttribute =
         pchar '[' >>. whitespace >>. parseNamespaceSelector .>>. identifier .>> whitespace
-        .>>. opt (parseMatch .>> whitespace  .>>. identifier (* or string*) ) .>> whitespace .>> pchar ']'
-    //parse pseudo
+        .>>. opt (parseMatch .>> whitespace  .>>. (identifier <|> istring) ) .>> whitespace .>> pchar ']'
+        |>> SimpleSelector.Attribute
 
-    //parse negation
+    let parsePseudoElement =
+        pchar ':' >>.
+            ((pchar ':' >>. identifier) |>> SimpleSelector.PsudoElement)
+            <|>
+            (identifier |>> SimpleSelector.PsudoElement)
 
 
-    let parseSimpleSelector = attempt parseClass <|> attempt parseId
+    let parseNegation =
+        pchar ':' 
+        .>> pstringCI "NOT"
+        .>> pchar '('
+        .>> whitespace
+        >>. (
+            attempt parseTypeSelector |>> SimpleSelector.TypeSelector
+            <|> attempt parseClass
+            <|> attempt parseId
+            <|> attempt parseAttribute
+            <|> attempt parsePseudoElement )
+        .>> whitespace
+        .>> pchar ')'
+        |>> SimpleSelector.Negation
+
+
+    let parseSimpleSelector = 
+        attempt parseClass 
+        <|> attempt parseId
+        <|> attempt parseAttribute
+        <|> attempt parsePseudoElement
+        <|> attempt parseNegation
 
         
 
