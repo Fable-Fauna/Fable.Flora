@@ -9,8 +9,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="CssProvider.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="CssProvider.fs" />
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
