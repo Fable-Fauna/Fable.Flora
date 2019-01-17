@@ -8,6 +8,8 @@ open Microsoft.FSharp.Core.CompilerServices
 open System.IO
 open FParsec
 open ProviderImplementation.ProvidedTypes
+open FSharp.Quotations
+open ProviderImplementation
 
 open CssProvider.Parser
 
@@ -67,9 +69,43 @@ module CssProcesser =
                 })
         | Failure(err,perr,_) -> failwith err
 
-//module CssProviderHelpers =
 
+module CssProviderHelpers =
+    open CssProcesser
 
+    let (|Singleton|) = function [l] -> l | _ -> failwith "Parameter mismatch"
+
+    let rec makeType (g : Graph) =
+        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true)
+        if g.Leaf.IsSome then
+                let valueProp = 
+                    ProvidedProperty(propertyName = "Value", 
+                                  propertyType = typeof<string>, //generated static type
+                                  isStatic = true,
+                                  getterCode = (fun args -> <@@ g.Leaf.Value @@>))  
+                t.AddMember(valueProp)       
+
+        for child in g.Children do
+            if child.Leaf.IsSome && Array.isEmpty child.Children then
+                let valueProp = 
+                    ProvidedProperty(propertyName = child.Name, 
+                                  propertyType = typeof<string>, //generated static type
+                                  isStatic = true,
+                                  getterCode = (fun args -> <@@ child.Leaf.Value @@>))  
+                t.AddMember(valueProp)
+            else 
+                let subtype = makeType child
+                
+                let prop = 
+                    ProvidedProperty( propertyName = child.Name, 
+                                      propertyType = subtype,
+                                      isStatic = true,
+                                      getterCode = (fun (Singleton doc) -> doc ))  
+                t.AddMember(prop)       
+
+        t               
+
+open CssProviderHelpers
 
 [<TypeProvider>]
 type public Css (config : TypeProviderConfig) as this =
@@ -78,7 +114,7 @@ type public Css (config : TypeProviderConfig) as this =
     let ns = "Fable.CssClassProvider"
 
     let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
-    let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>)
+    let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>, isErased = false)
 
     do generator.DefineStaticParameters(
         parameters = staticParams,
@@ -90,29 +126,21 @@ type public Css (config : TypeProviderConfig) as this =
 
                     
                     let root = 
-                        ProvidedTypeDefinition(typeName, baseType = Some typeof<obj>)
+                        ProvidedTypeDefinition(typeName, baseType = Some typeof<obj>, hideObjectMethods = true)
 
                     for graph in graphs do
-                        //make type recursively
+                        let t = makeType graph
 
                         let staticProp = 
                             ProvidedProperty(propertyName = graph.Name, 
-                                          propertyType = typeof<string>, //generated static type
+                                          propertyType = t, //generated static type
                                           isStatic = true,
-                                          getterCode = (fun args -> <@@ "Hello!" @@>))  
+                                          getterCode = (fun (Singleton doc) -> doc))  
                         root.AddMember(staticProp)                   
                     root
             )
         )
-        
-        
-       
-        // let staticProp = ProvidedProperty(propertyName = "StaticProperty", 
-        //                                   propertyType = typeof<string>, 
-        //                                   isStatic = true,
-        //                                   getterCode = (fun args -> <@@ "Hello!" @@>))
-        // generator.AddMember staticProp
-            
+
     do this.AddNamespace(ns, [generator])
 
 
