@@ -114,7 +114,7 @@ type public Css (config : TypeProviderConfig) as this =
     let ns = "Fable.CssClassProvider"
 
     let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
-    let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>, isErased = false)
+    let generator = ProvidedTypeDefinition(asm, ns, "CssGenerator", Some typeof<obj>, isErased = false)
 
     do generator.DefineStaticParameters(
         parameters = staticParams,
@@ -126,7 +126,7 @@ type public Css (config : TypeProviderConfig) as this =
 
                     
                     let root = 
-                        ProvidedTypeDefinition(typeName, baseType = Some typeof<obj>, hideObjectMethods = true)
+                        ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true)
 
                     for graph in graphs do
                         let t = makeType graph
@@ -138,6 +138,7 @@ type public Css (config : TypeProviderConfig) as this =
                                           getterCode = (fun (Singleton doc) -> doc))  
                         root.AddMember(staticProp)                   
                     root
+                | _ -> failwith "unexpected parameter values"                
             )
         )
 
