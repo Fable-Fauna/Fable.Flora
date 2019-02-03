@@ -8,7 +8,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Fable.Flora">
-      <HintPath>..\src\bin\Release\netstandard2.0\Fable.Flora.dll</HintPath>
+      <HintPath>..\src\bin\Debug\netstandard2.0\Fable.Flora.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />

@@ -1,5 +1,5 @@
 // ts2fable 0.6.1
-namespace Fable.CssClassProvider
+namespace Fable.CssProvider
 open System
 open Fable.Core
 open Fable.Import.JS
@@ -108,13 +108,13 @@ module CssProviderHelpers =
 open CssProviderHelpers
 
 [<TypeProvider>]
-type public Css (config : TypeProviderConfig) as this =
+type public CssProvider (config : TypeProviderConfig) as this =
     inherit TypeProviderForNamespaces (config)
     let asm = System.Reflection.Assembly.GetExecutingAssembly()
-    let ns = "Fable.CssClassProvider"
+    let ns = "Fable.CssProvider"
 
     let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
-    let generator = ProvidedTypeDefinition(asm, ns, "CssGenerator", Some typeof<obj>, isErased = false)
+    let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>, isErased = false)
 
     do generator.DefineStaticParameters(
         parameters = staticParams,
