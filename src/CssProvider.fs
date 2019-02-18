@@ -11,64 +11,6 @@ open ProviderImplementation.ProvidedTypes
 open FSharp.Quotations
 open ProviderImplementation
 
-open CssProvider.Parser
-
-module CssProcesser =
-    let procCss (css : Definition list) = 
-        let q = seq {
-            for x in css do
-                for y in x do
-                    for (typ,ls) in y do
-                        for l in ls do
-                            match l with
-                            | SimpleSelector.Class(cls) -> 
-                                yield typ.Element, (cls.Split('-') |> Array.toList, cls)
-                            | _ -> ()
-        }
-        let n = 
-            q   |> Seq.groupBy (fst >> (function | ElementSelector.Name(e) -> e | _ -> "Any"))
-                |> Seq.map (fun (x,y) -> x, y |> Seq.map snd |> Seq.toArray) 
-                |> Seq.toArray
-        n
-
-    type Graph =
-        { Leaf : string option
-          Name : string
-          Children : Graph []
-        }
-
-
-
-    let rec produceGraph (classes :(string list * string) seq) : Graph [] =
-        classes 
-        |> Seq.groupBy (fun x -> List.head (fst x) )
-        |> Seq.map (fun (x,y) -> 
-            let mutable leaf = None
-            let flex = 
-                seq { 
-                    for (z,zz) in y do
-                        match z with
-                        | h::[] -> leaf <- Some(zz)
-                        | h::tail -> yield tail,zz
-                }
-            {Name = x
-             Leaf = leaf
-             Children = produceGraph flex })
-        |> Seq.toArray
-
-    let makeGraphFromCss filename =
-        let testText = File.ReadAllText(filename)
-        let result = run parseCss testText
-        match result with
-        | Success(defs,_,_) ->
-            let a = procCss defs
-            a |> Array.map (fun (x,y) -> 
-                { Leaf = None
-                  Name = x
-                  Children = produceGraph y
-                })
-        | Failure(err,perr,_) -> failwith err
-
 
 module CssProviderHelpers =
     open CssProcesser
@@ -76,7 +18,7 @@ module CssProviderHelpers =
     let (|Singleton|) = function [l] -> l | _ -> failwith "Parameter mismatch"
 
     let rec makeType (g : Graph) =
-        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true)
+        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = false)
         if g.Leaf.IsSome then
                 let valueProp = 
                     ProvidedProperty(propertyName = "Value", 
@@ -101,7 +43,7 @@ module CssProviderHelpers =
                                       propertyType = subtype,
                                       isStatic = true,
                                       getterCode = (fun (Singleton doc) -> doc ))  
-                t.AddMember(prop)       
+                t.AddMember(subtype)       
 
         t               
 
@@ -111,7 +53,7 @@ open CssProviderHelpers
 type public CssProvider (config : TypeProviderConfig) as this =
     inherit TypeProviderForNamespaces (config)
     let asm = System.Reflection.Assembly.GetExecutingAssembly()
-    let ns = "Fable.CssProvider"
+    let ns = "Proto"
 
     let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
     let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>, isErased = false)
@@ -123,10 +65,12 @@ type public CssProvider (config : TypeProviderConfig) as this =
                 match pVals with 
                 | [| :? string as file|] -> 
                     let graphs = CssProcesser.makeGraphFromCss file
-
+                    //failwith (sprintf "%O" graphs) its empty
                     
                     let root = 
-                        ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true)
+                        ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = false)
+
+                      
 
                     for graph in graphs do
                         let t = makeType graph
@@ -136,7 +80,8 @@ type public CssProvider (config : TypeProviderConfig) as this =
                                           propertyType = t, //generated static type
                                           isStatic = true,
                                           getterCode = (fun (Singleton doc) -> doc))  
-                        root.AddMember(staticProp)                   
+                        //root.AddMember(staticProp)     
+                        root.AddMember(t)
                     root
                 | _ -> failwith "unexpected parameter values"                
             )

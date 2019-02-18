@@ -63,8 +63,12 @@ module Parser =
         string * string
 
     and Definition =
-        SelectorGroup list  
+        { SelectorGroups : SelectorGroup list
+          Rules : Rule list}
 
+    and CssRoot =
+        | Definition of Definition
+        | Media
 
     //OTHER
 
@@ -77,7 +81,9 @@ module Parser =
 
 
     //SELECTORS
-    let identifier = (satisfy isLetter <|> pchar '-') |> many1Chars
+    let identifier = 
+        ((satisfy isLetter <|> pchar '-' <|> satisfy isDigit) |> many1Chars 
+        <|> (pstring "\:" >>% ":") <|> (pstring "\/" >>% "/")) |> many1Strings
 
     let istring = 
         (pchar '"' >>. identifier .>> pchar '"')
@@ -122,10 +128,7 @@ module Parser =
         |>> SimpleSelector.Attribute
 
     let parsePseudoElement =
-        pchar ':' >>.
-            ((pchar ':' >>. identifier) |>> SimpleSelector.PsudoElement)
-            <|>
-            (identifier |>> SimpleSelector.PsudoElement)
+        pchar ':' >>. (optional (pchar ':')) >>. identifier |>> SimpleSelector.PsudoElement
 
 
     let parseNegation =
@@ -169,15 +172,39 @@ module Parser =
     let parseSelectorGroup  = 
         sepBy1 parseSelector (pchar ',' .>> whitespace) 
     
+    let parseDefinition :Parser<Definition,unit> =
+        (parseSelectorGroup .>> whitespace) 
+        .>> (pchar '{' >>. skipCharsTillStringCI "}" true Int32.MaxValue) 
+        |>> (fun x -> { SelectorGroups = x; Rules = []})
 
+    //@Media
 
+    let parseCss2 = attempt (many1 (attempt (whitespace >>. parseDefinition)))
 
+    let parseMediaQuery =
+        (pchar '(' >>. (identifier .>> pchar ':' >>. skipCharsTillStringCI ")" true 200))
+
+    let parseMediaQueryList  =
+        sepBy1 parseMediaQuery (pchar ',' .>> whitespace) 
+
+    let parseMediaSection =
+        whitespace >>. pstringCI "@media" >>. whitespace >>. parseMediaQueryList >>. whitespace >>.
+        between (pchar '{') (whitespace >>. pchar '}') parseCss2 |>> ignore
+
+    
+    //let parseMediaFeature = //plain, boolean, range
+        
+         
     //RULES
 
+    //let parseRule :Parser<Rule,unit> =
+    //    (whitespace >>. identifier .>> pchar ':') 
+    //    .>>. (whitespace >>. skipCharsTillStringCI ';')
+    
  
-    let parseDefinition :Parser<Definition,unit> =
-        (parseSelectorGroup .>> whitespace) .>> (pchar '{' >>. skipCharsTillStringCI "}" true Int32.MaxValue) 
+
         
-    let parseCss : Parser<Definition list, unit>= 
-        many1 (attempt (whitespace >>. parseDefinition))
+    let parseCss = 
+        many1 (whitespace >>. choice [(parseDefinition |>> CssRoot.Definition); (parseMediaSection >>% CssRoot.Media)] .>> whitespace)
+        |>> (fun ls -> ls |> List.choose (function | CssRoot.Definition(x) -> Some(x) | _ -> None))
 

@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28516.95
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Fable.Flora", "Fable.Flora.fsproj", "{751204CC-73F8-43CF-9B58-0A3DD7B96738}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{751204CC-73F8-43CF-9B58-0A3DD7B96738}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{751204CC-73F8-43CF-9B58-0A3DD7B96738}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{751204CC-73F8-43CF-9B58-0A3DD7B96738}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{751204CC-73F8-43CF-9B58-0A3DD7B96738}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B5EA170D-B2F9-4AAA-B38B-09BCF5522031}
+	EndGlobalSection
+EndGlobal
