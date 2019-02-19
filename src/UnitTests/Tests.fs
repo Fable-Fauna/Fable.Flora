@@ -159,7 +159,7 @@ let  ``parse sample 6`` () =
 
 [<Fact>]
 let ``tailwind`` () =
-    let testText = File.ReadAllText("../../../../test/tailwind.css")
+    let testText = File.ReadAllText("../../../../../test/tailwind.css")
     let result = run parseCss testText 
     match result with
     | Success(z,_,_) -> Assert.True true
@@ -168,12 +168,12 @@ let ``tailwind`` () =
 
 [<Fact>]
 let ``bootstrap`` () =
-    let testText = File.ReadAllText("../../../../test/bootstrap.css")
+    let testText = File.ReadAllText("../../../../../test/bootstrap.css")
     let result = run parseCss testText 
     assert_success result
 
 [<Fact>]
 let ``tailwind graphs`` () =
     //let testText = File.ReadAllText("../../../../test/tailwind.css")
-    let result = CssProcesser.makeGraphFromCss "../../../../test/tailwind.css"
+    let result = CssProcesser.makeGraphFromCss "../../../../../test/tailwind.css"
     Assert.NotEmpty result

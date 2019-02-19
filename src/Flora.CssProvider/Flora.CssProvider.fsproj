@@ -9,12 +9,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="CssProcessor.fs" />
     <Compile Include="CssProvider.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Flora.CssParser\Flora.CssParser.fsproj" />
   </ItemGroup>
   <PropertyGroup>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-  <Import Project="..\.paket\Paket.Restore.targets" />
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

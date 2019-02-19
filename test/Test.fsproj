@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
@@ -7,8 +7,8 @@
     <Content Include="*.fsproj; *.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Fable.Flora">
-      <HintPath>..\src\bin\Debug\netstandard2.0\Fable.Flora.dll</HintPath>
+    <Reference Include="Flora.CssProvider">
+      <HintPath>..\src\Flora.CssProvider\bin\Debug\netstandard2.0\Flora.CssProvider.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />

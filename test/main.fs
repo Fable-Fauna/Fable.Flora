@@ -9,7 +9,7 @@ open Proto
 
 type TW = Proto.Css<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
-let q = TW
+let q = TW.Any.container
 
 
 

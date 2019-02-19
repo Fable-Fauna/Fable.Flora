@@ -1,6 +1,4 @@
-﻿
-
-module CssProcesser 
+﻿module CssProcesser
 
 open CssProvider.Parser
 open System.IO
