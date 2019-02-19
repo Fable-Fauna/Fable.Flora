@@ -3,17 +3,12 @@
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\Fable.Flora.fsproj">
-      <Name>Fable.Flora.fsproj</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="main.fs" />
     <Content Include="*.fsproj; *.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Fable.Flora">
-      <HintPath>..\src\bin\Release\netstandard2.0\Fable.Flora.dll</HintPath>
+      <HintPath>..\src\bin\Debug\netstandard2.0\Fable.Flora.dll</HintPath>
     </Reference>
   </ItemGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />

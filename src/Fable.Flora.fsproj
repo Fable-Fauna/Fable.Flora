@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
@@ -9,8 +9,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ProvidedTypes.fs" />
-    <Compile Include="CssProvider.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="CssProcessor.fs" />
+    <Compile Include="CssProvider.fs" />
   </ItemGroup>
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
