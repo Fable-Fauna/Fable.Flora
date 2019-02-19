@@ -1,6 +1,3 @@
-# Fauna.Flora
-Css theme type provider and tools
-
 # Flora.CssParser
 A to spec css parser for .NET.
 
