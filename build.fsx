@@ -56,29 +56,31 @@ let yarnTool = platformTool "yarn"
 let yarn = run yarnTool "./"
 
 Target.create "Clean" (fun _ ->
-    !! "src/bin"
-    ++ "src/obj"
+    !! "src/**/bin"
+    ++ "src/**/obj"
     ++ "test/bin"
     ++ "test/obj"
     |> Seq.iter Shell.cleanDir
 )
 
 Target.create "Install" (fun _ ->
-    ["src/Fable.Flora.fsproj"; "test/Test.fsproj"]
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"; "test/Test.fsproj"]
     |> Seq.map IO.Path.GetDirectoryName 
     |> Seq.iter (fun x -> DotNet.restore id x)
 )
 
 
 Target.create "Build" (fun _ ->
-    let dir = IO.Path.GetDirectoryName "src/Fable.Flora.fsproj"
-    DotNet.build id dir
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"]
+    |> Seq.map IO.Path.GetDirectoryName 
+    |> Seq.iter (fun x ->DotNet.build id x)
 )
 
 
 Target.create "QuickBuild" (fun _ ->
-    let dir = IO.Path.GetDirectoryName "src/Fable.Flora.fsproj"
-    DotNet.build (fun p -> {p with Configuration = DotNet.BuildConfiguration.Debug}) dir
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"]
+    |> Seq.map IO.Path.GetDirectoryName 
+    |> Seq.iter (fun x -> DotNet.build (fun p -> {p with Configuration = DotNet.BuildConfiguration.Debug}) x )
 )
 
 
@@ -142,10 +144,9 @@ let pushNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
 
 
 Target.create "PublishNugets" (fun _ ->
-    let projFile = "src/Fable.Flora.fsproj"
-    let projDir = IO.Path.GetDirectoryName(projFile)
-    let release = projDir </> "RELEASE_NOTES.md" |> ReleaseNotes.load
-    pushNuget release projFile
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"]
+    |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
+    |> Seq.iter (fun (proj,notes) -> pushNuget notes proj)
 )
 
 // Where to push generated documentation
