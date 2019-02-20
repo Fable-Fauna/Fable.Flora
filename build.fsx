@@ -58,13 +58,11 @@ let yarn = run yarnTool "./"
 Target.create "Clean" (fun _ ->
     !! "src/**/bin"
     ++ "src/**/obj"
-    ++ "test/bin"
-    ++ "test/obj"
     |> Seq.iter Shell.cleanDir
 )
 
 Target.create "Install" (fun _ ->
-    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"; "test/Test.fsproj"]
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj";]
     |> Seq.map IO.Path.GetDirectoryName 
     |> Seq.iter (fun x -> DotNet.restore id x)
 )

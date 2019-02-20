@@ -14,3 +14,14 @@ A type provider for consumption in both .NET and Fable runtimes to provide class
 * Foundation
 * Material UI
 * UIKit
+
+# Getting Started
+
+Run `fake build`
+Change directory to test\tailwind-test-app
+Run `npm install`
+Run `npm start`
+
+Make some changes to test\tailwind-test-app\src\App.fs
+
+Have fun
