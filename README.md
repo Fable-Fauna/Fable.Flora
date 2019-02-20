@@ -18,10 +18,13 @@ A type provider for consumption in both .NET and Fable runtimes to provide class
 # Getting Started
 
 Run `fake build`
-Change directory to test\tailwind-test-app
+
+Change directory to `test\tailwind-test-app`
+
 Run `npm install`
+
 Run `npm start`
 
-Make some changes to test\tailwind-test-app\src\App.fs
+Make some changes to `test\tailwind-test-app\src\App.fs`
 
 Have fun
