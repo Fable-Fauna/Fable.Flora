@@ -3,7 +3,7 @@
     "Fable.Flora": {
       "commandName": "Executable",
       "executablePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Preview\\Common7\\IDE\\devenv.exe",
-      "commandLineArgs": "C:\\Users\\Orlando\\Desktop\\Projects2019\\Fable-Fauna\\Fable.Flora\\test\\Test.fsproj"
+      "commandLineArgs": "C:\\Users\\Orlando\\Desktop\\Projects2019\\Fable-Fauna\\Fable.Flora\\test\\tailwind-test-app\\src\\App.fsproj"
     }
   }
 }
