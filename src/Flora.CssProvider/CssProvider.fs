@@ -1,5 +1,5 @@
 // ts2fable 0.6.1
-namespace Fable.CssProvider
+namespace Flora.CssProvider
 open System
 open Fable.Core
 open Fable.Import.JS
@@ -18,31 +18,25 @@ module CssProviderHelpers =
     let (|Singleton|) = function [l] -> l | _ -> failwith "Parameter mismatch"
 
     let rec makeType (g : Graph) =
-        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = false)
+        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
         if g.Leaf.IsSome then
                 let valueProp = 
                     ProvidedProperty(propertyName = "Value", 
-                                  propertyType = typeof<string>, //generated static type
+                                  propertyType = typeof<string>,
                                   isStatic = true,
-                                  getterCode = (fun args -> <@@ g.Leaf.Value @@>))  
+                                  getterCode = (fun _ -> Expr.Value g.Leaf.Value))  
                 t.AddMember(valueProp)       
 
         for child in g.Children do
             if child.Leaf.IsSome && Array.isEmpty child.Children then
                 let valueProp = 
                     ProvidedProperty(propertyName = child.Name, 
-                                  propertyType = typeof<string>, //generated static type
+                                  propertyType = typeof<string>,
                                   isStatic = true,
-                                  getterCode = (fun args -> <@@ child.Leaf.Value @@>))  
+                                  getterCode = (fun _ -> Expr.Value child.Leaf.Value ))  
                 t.AddMember(valueProp)
             else 
                 let subtype = makeType child
-                
-                let prop = 
-                    ProvidedProperty( propertyName = child.Name, 
-                                      propertyType = subtype,
-                                      isStatic = true,
-                                      getterCode = (fun (Singleton doc) -> doc ))  
                 t.AddMember(subtype)       
 
         t               
@@ -53,10 +47,10 @@ open CssProviderHelpers
 type public CssProvider (config : TypeProviderConfig) as this =
     inherit TypeProviderForNamespaces (config)
     let asm = System.Reflection.Assembly.GetExecutingAssembly()
-    let ns = "Proto"
+    let ns = "Flora"
 
     let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
-    let generator = ProvidedTypeDefinition(asm, ns, "Css", Some typeof<obj>, isErased = false)
+    let generator = ProvidedTypeDefinition(asm, ns, "Stylesheet", Some typeof<obj>, isErased = true)
 
     do generator.DefineStaticParameters(
         parameters = staticParams,
@@ -65,22 +59,15 @@ type public CssProvider (config : TypeProviderConfig) as this =
                 match pVals with 
                 | [| :? string as file|] -> 
                     let graphs = CssProcesser.makeGraphFromCss file
-                    //failwith (sprintf "%O" graphs) its empty
+                    //failwith (sprintf "graphs") 
                     
                     let root = 
-                        ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = false)
+                        ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
 
                       
 
                     for graph in graphs do
                         let t = makeType graph
-
-                        let staticProp = 
-                            ProvidedProperty(propertyName = graph.Name, 
-                                          propertyType = t, //generated static type
-                                          isStatic = true,
-                                          getterCode = (fun (Singleton doc) -> doc))  
-                        //root.AddMember(staticProp)     
                         root.AddMember(t)
                     root
                 | _ -> failwith "unexpected parameter values"                
@@ -88,8 +75,6 @@ type public CssProvider (config : TypeProviderConfig) as this =
         )
 
     do this.AddNamespace(ns, [generator])
-
-
 
 [<assembly:TypeProviderAssembly>]
 do ()

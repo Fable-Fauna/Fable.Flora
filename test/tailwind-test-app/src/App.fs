@@ -9,11 +9,11 @@ open Elmish
 open Elmish.React
 open Fable.Helpers.React
 open Fable.Helpers.React.Props
-open Fable.CssProvider
-open Proto
+open Flora.CssProvider
+
 
 // MODEL
-type Tailwind = Proto.Css<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
+type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
 type Model = int
 
