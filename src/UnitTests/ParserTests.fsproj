@@ -6,6 +6,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Tests.fs" />
+    <Compile Include="TailwindTests.fs" />
+    <Compile Include="BulmaTests.fs" />
+    <Compile Include="BootstrapTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Flora.CssParser\Flora.CssParser.fsproj" />

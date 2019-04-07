@@ -46,7 +46,7 @@ let rec produceGraph (classes :(string list * string) []) : Graph [] =
     |> Seq.toArray
 
 let makeGraphFromCss filename =
-    let testText = File.ReadAllText(filename)
+    let testText = File.ReadAllText(filename,System.Text.Encoding.UTF8)
     let result = run parseCss testText
     match result with
     | Success(defs,_,_) ->
