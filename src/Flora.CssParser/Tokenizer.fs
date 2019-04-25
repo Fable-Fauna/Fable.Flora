@@ -425,6 +425,10 @@ let tokenise (input : string) =
     //eof
     | _ -> Token.Delim input.[0], input.Remove(0,1)
 
+let rec tokenStream input =
+    let t,s = tokenise input
+    t :: tokenStream s
+
 type Stylesheet =
     Rule list
 
