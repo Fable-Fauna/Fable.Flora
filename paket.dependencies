@@ -14,6 +14,8 @@ nuget Fable.Elmish.Debugger
 nuget Fable.PowerPack
 nuget FParsec
 nuget Microsoft.NET.Test.Sdk
+nuget Expecto
+nuget YoloDev.Expecto.TestSdk
 nuget xunit
 nuget xunit.runner.visualstudio
 
@@ -32,4 +34,4 @@ group netcorebuild
     nuget Fake.Core.ReleaseNotes
     nuget Fake.IO.FileSystem
     nuget Fake.Tools.Git
-nuget Expecto
+

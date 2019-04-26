@@ -74,7 +74,7 @@ type Token =
 
 let (|PChar|_|) (char : char) (input : string) =
     match input with
-    | str when str.[0] = char -> Some(input.Remove(0,1))
+    | str when str.StartsWith (string char) -> Some(input.Remove(0,1))
     | _ -> None
 
 let (|PString|_|) (str : string) (input : string) =
@@ -98,9 +98,9 @@ let (|Char|_|) (input : string) =
 
 let (|NewLine|_|) (input : string) =
     if input.StartsWith("\u000D\u000A") then Some(input.Substring(2))
-    else if input.[0] = '\u000D' then Some(input.Substring(1))
-    else if input.[0] = '\u000C' then Some(input.Substring(1))
-    else if input.[0] = '\u000A' then Some(input.Substring(1))
+    else if input.StartsWith("\u000D") then Some(input.Substring(1))
+    else if input.StartsWith("\u000C") then Some(input.Substring(1))
+    else if input.StartsWith("\u000A") then Some(input.Substring(1))
     else None
 
 let (|Comment|_|) (input : string) =
@@ -112,10 +112,10 @@ let (|Comment|_|) (input : string) =
 let (|Space|_|) (input : string) =
     match input with
     | NewLine(left) -> Some(left)
-    | str when str.[0] = '\t' || str.[0] = ' ' -> Some(input.Substring(1))
+    | str when str.StartsWith("\t") || str.StartsWith(" ") -> Some(input.Substring(1))
     | _ -> None
 
-let (|Whitespace|) (input : string) =
+let (|MustWhitespace|) (input : string) =
     let mutable loop = true
     let mutable ins = input
     let mutable comment = []
@@ -126,8 +126,8 @@ let (|Whitespace|) (input : string) =
         | _ -> loop <- false
     Token.Whitespace(comment),ins
     
-let (|MaybeWhitespace|_|) (input : string) =
-    let result = (|Whitespace|) input
+let (|Whitespace|_|) (input : string) =
+    let result = (|MustWhitespace|) input
     if (snd result).Length = input.Length then None
     else Some(result)
 
@@ -208,7 +208,7 @@ let (|IdentCodon|_|) (input : string) =
     | [|u|] when u >= 97uy && u <= 122uy -> Some(c)
     | [|95uy|] -> Some(c)
     | [|u|] when u > 128uy -> Some(c)
-    | ary when ary.Length > 1 -> Some(c)
+    | ary when ary.Length > 1 -> Some(c) //?
     | _ -> None
 
 let (|Ident|_|) (input : string) = 
@@ -313,7 +313,7 @@ let (|UrlUnQuote|_|) (input : string) =
             || char = ')'
             || Char.IsControl char
             -> loop <- false //failwith "url cannot contain \\ \" ' ( ) "
-        | MaybeWhitespace(left) -> loop <- false
+        | Whitespace(left) -> loop <- false
         | Char (char,left) ->
             result <- result + string char
             rest <- left
@@ -330,10 +330,10 @@ let (|UrlToken|_|) (input : string) =
         let inner = str.Substring(0,i)
         let rest = input.Remove(0,i+1)
         match inner with
-        | MaybeWhitespace(_,left) ->
+        | Whitespace(_,left) ->
             match left with
             | UrlUnQuote(out) -> Some(out,rest)
-            | StringToken(out,MaybeWhitespace(_,left)) -> 
+            | StringToken(out,Whitespace(_,left)) -> 
                 if left.Length > 0 then failwith "invliad url token"
                 Some(out,rest)
             | _ -> None
@@ -393,7 +393,7 @@ let (|NumberToken|_|) (input : string) =
 
 let tokenise (input : string) =
     match input with
-    | MaybeWhitespace(t,left) -> t,left
+    | Whitespace(t,left) -> t,left
     | StringToken(t,left) -> Token.String(t),left
     | HashToken(t,left) -> Token.Hash(t),left //incorrect
     | PString "$=" left -> Token.SuffixMatch,left
@@ -425,9 +425,11 @@ let tokenise (input : string) =
     //eof
     | _ -> Token.Delim input.[0], input.Remove(0,1)
 
-let rec tokenStream input =
-    let t,s = tokenise input
-    t :: tokenStream s
+let rec tokenStream (input : string) =
+    if input.Length = 0 then [] 
+    else
+        let t,s = tokenise input
+        t :: tokenStream s
 
 type Stylesheet =
     Rule list
