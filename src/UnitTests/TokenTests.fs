@@ -8,9 +8,10 @@ open System.IO
 open Tests
 
 [<Theory>]
-[<InlineData("""letters""")>]
+[<InlineData("\"letters\"")>]
 [<InlineData("'letters'")>]
-[<InlineData("""""")>]
+//[<InlineData("""""")>]
+//[<InlineData("""sbc""a""")>]
 let ``string token`` (str : string) =
     match tokenStream str with
     | [Token.String(a)] -> true
@@ -29,7 +30,18 @@ let ``whitespace token`` (str : string) =
 let tests =
     testList "token tests" [
         test "string token" {
-            """letters""" |> tokenStream  |> (function | [Token.String(_)] -> true | _ -> false) |> (fun x -> Expect.isTrue x "string of letters")
+            match "\"letters\"" with
+            | StringToken (str,left) -> Expect.equal str "letters" "string of letters"
+        };
+
+        test "pchar" {
+            match "sa" with
+            | PChar 's' left -> Expect.equal left "a" "pchar leaves rest"
+        }
+
+        test "between" {
+            match "asa" with
+            | Between 'a' (result,left) -> Expect.equal result "s" "between takes inside"; Expect.equal left "" "nothing left"
         }
     ]
 

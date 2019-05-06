@@ -77,10 +77,10 @@ let (|PChar|_|) (char : char) (input : string) =
     | str when str.StartsWith (string char) -> Some(input.Remove(0,1))
     | _ -> None
 
-let (|PString|_|) (str : string) (input : string) =
+let (|PString|_|) (pattern : string) (input : string) =
     match input with
-    | str when str.StartsWith str -> 
-        Some(input.Remove(0,str.Length))
+    | str when str.StartsWith pattern -> 
+        Some(input.Remove(0,pattern.Length))
     | _ -> None    
 
 let (|Between|_|) (char : char) (input : string) =
@@ -88,7 +88,7 @@ let (|Between|_|) (char : char) (input : string) =
     | PChar char str -> 
         let i = str.IndexOf char
         let s = str.Substring(0,i)
-        Some(s,input.Remove(0,i+1))
+        Some(s,input.Remove(0,i+2))
     | _ -> None    
 
 let (|Char|_|) (input : string) =
@@ -284,16 +284,17 @@ let (|StringToken|_|) (input : string) =
         let mutable loop, result, rest  = true,"",str
         while loop do 
             match rest with
-            | Escape(a,left) ->
+            | "" -> loop <- false
+            | Escape(a,l) ->
                 result <- result + a
-                rest <- left
-            | PChar '\\' (NewLine(left)) -> 
+                rest <- l
+            | PChar '\\' (NewLine(l)) -> 
                 result <- result + "\u000A"
-                rest <- left
-            | Char (char, left) -> 
+                rest <- l
+            | Char (char, l) -> 
                 result <- result + string char
-                rest <- left
-            | _ -> ()
+                rest <- l
+            | _ -> loop <- false
         Some(result,left)    
     | _ -> None
 
@@ -381,7 +382,8 @@ let (|NumberToken|_|) (input : string) =
             match left with 
             | PChar '+' (Digits (num,left)) -> false, num, left
             | PChar '-' (Digits (num,left))-> true,num,left
-            | Digits (num,left) ->  false,num,left   
+            | Digits (num,left) ->  false,num,left 
+            | _ -> false, "", left2 //case of "em" terminal
         | _ -> false, "", left2 
 
     if number = "" && decimal = "" then None 
