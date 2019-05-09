@@ -190,6 +190,7 @@ let (|Escape|_|) (input : string) =
             hex <- hex + (string) h
             while loop <= 6 do
                 match str with
+                | "" -> loop <- 10
                 | HexDigit(h, left) -> 
                     str <- left
                     hex <- hex + (string) h
@@ -213,34 +214,45 @@ let (|IdentCodon|_|) (input : string) =
 
 let (|Ident|_|) (input : string) = 
     let mutable loop = true
-    let mutable fst,rest =
-        match input with
-        | a when a.[0] = '-' -> 
-            match a.Remove(0,1) with
-            | IdentCodon(b) -> 
-                "-" + b, a.Remove(0,1)
-            | Escape(b,left) ->
-                b, left
-            | _ -> failwith "bad id"
-        | IdentCodon(a) -> 
-            a,input.Remove(0,1)
-        | Escape(a,left) ->
-            a, left
-        | _ -> loop <- false; "",""
+    let mutable fst = true
+    let mutable result,rest = "",input
+        //match input with
+        //| a when a.[0] = '-' -> //two?
+        //    match a.Remove(0,1) with
+        //    | IdentCodon(b) -> 
+        //        "-" + b, a.Remove(0,1)
+        //    | Escape(b,left) ->
+        //        b, left
+        //    | _ -> failwith "bad id"
+        //| IdentCodon(a) -> 
+        //    a,input.Remove(0,1)
+        //| Escape(a,left) ->
+        //    a, left
+        //| _ -> loop <- false; "",""
     if loop then
         while loop do 
             match rest with
-            | PChar '-' str -> 
-                fst <- fst + "-"
-                rest <- str
+            | PChar '-' left -> 
+                if fst then 
+                    match left with
+                    | Escape(b,left2) ->
+                        result <- result + b
+                        rest <- left2
+                    | _ -> 
+                        result <- result + "-" 
+                        rest <- left
+                else do
+                    result <- result + "-"
+                    rest <- left
+                fst <- false
             | IdentCodon(a) -> 
-                fst <- fst + a
+                result <- result + a
                 rest <- rest.Remove(0,1)
             | Escape(a,left) ->
-                fst <- fst + a
+                result <- result + a
                 rest <- left
             | _ -> loop <- false
-        Some(fst,rest)
+        if result = "" then None else Some(result,rest)
     else None
 
 let (|Function|_|) (input : string) =
@@ -261,7 +273,7 @@ let (|HashToken|_|) (input : string) =
     match input with
     | PChar '#' str -> 
         let mutable loop = true
-        let mutable fst, rest = "",""
+        let mutable fst, rest = "",str
         while loop do 
             match rest with
             | PChar '-' str -> 
@@ -427,11 +439,13 @@ let tokenise (input : string) =
     //eof
     | _ -> Token.Delim input.[0], input.Remove(0,1)
 
-let rec tokenStream (input : string) =
-    if input.Length = 0 then [] 
-    else
-        let t,s = tokenise input
-        t :: tokenStream s
+let tokenStream (input : string) =
+    input |> Seq.unfold (fun str -> 
+        if str.Length = 0 then None
+        else 
+            let t,s = tokenise str
+            Some(t,s)
+        ) |> Seq.toList
 
 type Stylesheet =
     Rule list
