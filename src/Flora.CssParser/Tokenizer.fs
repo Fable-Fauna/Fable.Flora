@@ -446,24 +446,3 @@ let tokenStream (input : string) =
             let t,s = tokenise str
             Some(t,s)
         ) |> Seq.toList
-
-type Stylesheet =
-    Rule list
-
-and Rule =
-    | Qualified of Component list * Block
-    | At of string * Component list * Block
-
-and Component =
-    | Preserved of Token
-    | SwiggleBlock of Block
-    | ParenBlock of Block
-    | SquareBlock of Block
-    | Function of string * Block
-
-and Block = Component list    
-
-let parse (input : Token list) =
-    match input with
-    | Token.Function(name) :: left -> left
-
