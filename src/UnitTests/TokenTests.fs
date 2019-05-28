@@ -6,6 +6,7 @@ open Tokenizer
 open Expecto
 open System.IO
 open Tests
+open CssProvider.ParseShaper
 
 [<Theory>]
 [<InlineData("\"letters\"")>]
@@ -52,6 +53,7 @@ let AccepectenceTests =
         test "tailwind" {
             let testText = File.ReadAllText("../../../../../test/tailwind.css")
             let tstream = tokenStream testText
+            let pshape = parseShape tstream
             Expect.isTrue (tstream.Length > 0) (sprintf "token length: %i"  tstream.Length)
         };
 
@@ -68,4 +70,30 @@ let AccepectenceTests =
         }
 
 
+    ]
+
+[<Tests>]
+let ShapeTests =
+    testList "Shape Tests" [
+        test "tailwind" {
+            let testText = ".select-none {
+            -webkit-user-select: none;
+               -moz-user-select: none;
+                -ms-user-select: none;
+                    user-select: none;
+}
+
+.select-text {
+            -webkit-user-select: text;
+               -moz-user-select: text;
+                -ms-user-select: text;
+                    user-select: text;
+}
+"
+            let tstream = tokenStream testText
+            let pshape = parseShape tstream
+            Expect.isTrue (pshape.Length = 2) (sprintf "token length: %i"  tstream.Length)
+        };
+
+       
     ]

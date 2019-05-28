@@ -254,10 +254,12 @@ module ParseShaper =
     and (|CompShapeList|_|) (terminal : Token) (input : Token list) =
         looper (fun x -> 
             match fst x with 
+            | [] -> None,false
+            | [a] when a = terminal -> Some([],snd x),false
             | a :: left when a = terminal -> Some(left,snd x),false
             | CompShape(shape,left) -> Some(left, (snd x) @ [shape]),true
             | _ -> failwith "broken shaper") (input,[])
-        |> (fun x -> Some(snd x,fst x))    
+        |> (function | (x,[]) -> None | (x,y) -> Some(y,x))    
 
     and (|RuleShape|_|) (input) =
         match input with
@@ -271,7 +273,62 @@ module ParseShaper =
     let parseShape input : StylesheetShape =
         looper (fun x ->
             match fst x with
+            | [] -> None, false
             | RuleShape(r,left) -> Some(left,(snd x) @ [r]),true
             | a :: left -> Some(left,snd x),true //do not preserve tokens not matching rules
+
             ) (input,[])
         |> snd
+
+module SelectorsParser =
+    open Tokenizer
+    open ParseShaper
+
+    type NamespaceSelector =
+        | All
+        | Empty
+        | Name of string
+
+    type ElementSelector =
+        | All
+        | Name of string
+
+    type Combinator =
+        | Desendent //*
+        | Child // >
+        | Next // +
+
+    and Match =
+        | Includes // ~=
+        | Dash // |=
+        | Prefix // ^=
+        | Suffix // $=
+        | Substring // *=
+        | Equal // =
+
+    and SelectorGroup =
+        SelectorSeq list
+
+    and TypeSelector =
+        { Element : ElementSelector
+          Namespace : NamespaceSelector}
+
+
+    and SimpleSelector =
+        | Class of string
+        | Id of string
+        | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
+        | PsudoClass of string //ident
+        | PsudoElement of string //ident 
+        | Negation of SimpleSelector
+        | TypeSelector of TypeSelector
+
+    and SelectorSeq =
+        TypeSelector * SimpleSelector list   
+
+    type Stylesheet =
+        Rule list
+    
+    and Rule =
+        | Qualified of SelectorGroup list * BlockShape
+        | At of string * SelectorGroup list * BlockShape

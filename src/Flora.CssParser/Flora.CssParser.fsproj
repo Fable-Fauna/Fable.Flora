@@ -4,8 +4,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Parser.fs" />
     <Compile Include="Tokenizer.fs" />
+    <Compile Include="Parser.fs" />
     <Compile Include="CssProcessor.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
