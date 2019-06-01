@@ -322,16 +322,18 @@ module SelectorsParser =
         
         //    let parseSelectorSeq = 
         //        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
-    let (|Child|Desendent|Next|_|)    
+
         
     let (|Combinator|_|) input =
       match input with
-      | Token.Delim('>') left -> Some(left.Consume(1))
-        (pchar '>' >>% Child)
-        <|> (pchar '*' >>% Desendent)
-        <|> (pchar '+' >>% Next)
-                
-        
+      | ComponentShape.Preserved(l)::ls ->
+        match l with
+        | Token.Delim('>') -> Some(Child,ls)
+        | Token.Delim('*') -> Some(Desendent,ls)
+        | Token.Delim('+') -> Some(Next,ls)
+        | _ -> None
+      | _ -> None
+                        
         //    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
         //        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
         
@@ -349,23 +351,24 @@ module SelectorsParser =
     let (|Selector|_|) input =
 
 
-    let (|NextSelectorGroup|_|) input = 
-      match input with
+    let (|NextSelectorGroup|_|) = function
       | ComponentShape.Preserved(Token.Comma) :: ComponentShape.Preserved(Token.Whitespace(_)) :: left -> Some(left)
       | ComponentShape.Preserved(Token.Comma) :: left -> Some(left)
       | _ -> None
 
     let parseSelectorGroup (input : ComponentShape list) : SelectorGroup list = 
-        ([],input)
-        |> looper (fun (results,x) -> 
-            match x with
-            | Selector selseq left -> 
-              match left with
-              | NextSelectorGroup left2 -> Some(results,left),true
-              | _ -> Some(results,left),false
-            | _ -> None, false
-            ) 
-        |> fst
+      Stream.sepBy1 Selector NextSelectorGroup input |> Option.get
+
+        //([],input)
+        //|> looper (fun (results,x) -> 
+        //    match x with
+        //    | Selector selseq left -> 
+        //      match left with
+        //      | NextSelectorGroup left2 -> Some(results,left),true
+        //      | _ -> Some(results,left),false
+        //    | _ -> None, false
+        //    ) 
+        //|> fst
 
     let parseRule (r : RuleShape) : Rule =
         match r with
