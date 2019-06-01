@@ -259,17 +259,118 @@ module SelectorsParser =
         | At of string * SelectorGroup list * BlockShape
 
 
-    //let parseSelectorSeq ls = 
-    //    match ls with
-    //    | TypeSelector ts left ->
-    //    | left ->
+        //    let parseNamespaceSelector =
+        //        attempt (
+        //            (identifier |>> NamespaceSelector.Name 
+        //            <|> (pchar '*' >>% NamespaceSelector.All)
+        //            <|> preturn NamespaceSelector.Empty)
+        //            .>> pchar '|') 
+        //        <|> preturn NamespaceSelector.All
+        
+        //    let parseElementSelector = 
+        //        identifier |>> ElementSelector.Name
+        //        <|> (pchar '*' >>% ElementSelector.All)
+        //        <|> preturn ElementSelector.All
+        
+        //    let parseTypeSelector = 
+        //        parseNamespaceSelector .>>. parseElementSelector 
+        //        |>> (fun (x,y) -> { Element = y; Namespace = x})
+                
+                 
+        //    let parseMatch =
+        //        (pstring "~=" >>% Match.Includes)
+        //        <|> (pstring "|=" >>% Match.Dash)
+        //        <|> (pstring "^=" >>% Match.Prefix)
+        //        <|> (pstring "$=" >>% Match.Suffix)
+        //        <|> (pstring "*=" >>% Match.Substring)
+        //        <|> (pchar '=' >>% Match.Equal)
+        
+           
+        //    let parseAttribute =
+        //        pchar '[' >>. whitespace >>. parseNamespaceSelector .>>. identifier .>> whitespace
+        //        .>>. opt (parseMatch .>> whitespace  .>>. (identifier <|> istring) ) .>> whitespace .>> pchar ']'
+        //        |>> SimpleSelector.Attribute
+        
+        //    let parsePseudoElement =
+        //        pchar ':' >>. (optional (pchar ':')) >>. identifier |>> SimpleSelector.PsudoElement
+        
+        
+        //    let parseNegation =
+        //        pchar ':' 
+        //        .>> pstringCI "NOT"
+        //        .>> pchar '('
+        //        .>> whitespace
+        //        >>. (
+        //            attempt parseTypeSelector |>> SimpleSelector.TypeSelector
+        //            <|> attempt parseClass
+        //            <|> attempt parseId
+        //            <|> attempt parseAttribute
+        //            <|> attempt parsePseudoElement )
+        //        .>> whitespace
+        //        .>> pchar ')'
+        //        |>> SimpleSelector.Negation
+        
+        
+        //    let parseSimpleSelector = 
+        //        attempt parseClass 
+        //        <|> attempt parseId
+        //        <|> attempt parseAttribute
+        //        <|> attempt parsePseudoElement
+        //        <|> attempt parseNegation
+        
+                
+        
+        //    let parseSelectorSeq = 
+        //        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
+    let (|Child|Desendent|Next|_|)    
+        
+    let (|Combinator|_|) input =
+      match input with
+      | Token.Delim('>') left -> Some(left.Consume(1))
+        (pchar '>' >>% Child)
+        <|> (pchar '*' >>% Desendent)
+        <|> (pchar '+' >>% Next)
+                
+        
+        //    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
+        //        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
+        
 
-    //let parseSelectorGroup ls = List.map parseSelectorSeq ls
 
-    //let parseRule (r : RuleShape) : Rule =
-    //    match r with
-    //    | RuleShape.Qualified(ls,bs) -> Rule.Qualified( (List.map parseSelectorGroup ls), bs)
-    //    | RuleShape.At(s,ls,bs) -> Rule.At(s, (List.map parseSelectorGroup ls), bs)
+    let (|TypeSelector|_|) (input : ComponentShape list) =
+        match input with
+        | 
 
-    //let parseStylesheet (shape : StylesheetShape) : Stylesheet =
-    //    shape |> List.map parseRule 
+    let (|SelectorSeq|_|) (input : ComponentShape list) : SelectorSeq = 
+        match input with
+        | TypeSelector ts left ->
+        | left ->
+
+    let (|Selector|_|) input =
+
+
+    let (|NextSelectorGroup|_|) input = 
+      match input with
+      | ComponentShape.Preserved(Token.Comma) :: ComponentShape.Preserved(Token.Whitespace(_)) :: left -> Some(left)
+      | ComponentShape.Preserved(Token.Comma) :: left -> Some(left)
+      | _ -> None
+
+    let parseSelectorGroup (input : ComponentShape list) : SelectorGroup list = 
+        ([],input)
+        |> looper (fun (results,x) -> 
+            match x with
+            | Selector selseq left -> 
+              match left with
+              | NextSelectorGroup left2 -> Some(results,left),true
+              | _ -> Some(results,left),false
+            | _ -> None, false
+            ) 
+        |> fst
+
+    let parseRule (r : RuleShape) : Rule =
+        match r with
+        | RuleShape.Qualified(ls,bs) -> Rule.Qualified(parseSelectorGroup ls, bs)
+        | RuleShape.At(s,ls,bs) -> Rule.At(s, (parseSelectorGroup ls), bs)
+
+    let parseStylesheet (shape : StylesheetShape) : Stylesheet =
+        shape |> List.map parseRule 

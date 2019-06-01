@@ -26,4 +26,9 @@ let tests =
             match stream "asa" with
             | Between 'a' (result,left) -> Expect.equal result (Some([|'s'|])) "between takes inside"; Expect.equal (left.Head()) None "nothing left"
         }
+        test "between 2" {
+            match stream "assas" with
+            | Between 'a' (result,left) -> Expect.equal result (Some([|'s'; 's'|])) "between takes inside"; Expect.equal (left.Head()) (Some('s')) "nothing left"
+        }
+
     ]

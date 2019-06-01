@@ -91,6 +91,47 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
           else (this :> IStream<'a>).Read 0 |> Option.map Array.head
 
 
+
+
+type ActiveParser<'a,'t> = IStream<'t> -> ('a * IStream<'t>) option
+
+type Combinator<'a,'b,'t> =  ActiveParser<'a,'t> ->  ActiveParser<'b,'t> ->  ActiveParser<'a * 'b,'t>
+
+let looper fn init =
+    let mutable loop = true
+    let mutable state = init
+    while loop do
+        match fn state with
+        | Some(st),continue -> 
+            state <- st
+            loop <- continue
+        | _ -> loop <- false
+    state
+
+let (.>>.) (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a * 'b,'t> =
+  fun x ->
+    (p x) |> Option.bind (fun (a,y) -> (q y) |> Option.bind (fun (b,z) -> Some((a,b),z)))
+
+let sepBy1 (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a list,'t> =
+  fun x ->
+    ([],x)
+    |> looper (fun (r,y) ->
+        match (p y) with
+        | Some(a,left) ->
+          match (q left) with
+          | Some(b,z) -> Some(a::r,z),true
+          | None -> Some(a::r,left),false
+        | None -> None, false)
+    |> Some
+    
+
+
+let (|Then|_|) (p: ActiveParser<'a,'t>) (q: ActiveParser<'b,'t>) = (p .>>. q) 
+
+
+    
+
+
 let (|PChar|_|) (char : char) (input : IStream<char>) =
     match input.Head() with
     | Some(chr) when chr = char -> Some(input.Consume(1))
