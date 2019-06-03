@@ -206,11 +206,13 @@ module ParseShaper =
 module SelectorsParser =
     open Tokenizer
     open ParseShaper
+    open Stream
 
     type NamespaceSelector =
-        | All
-        | Empty
-        | Name of string
+        | AllNamespaces
+        | DefultNamespace
+        | NoNamespace
+        | Namespace of string
 
     type ElementSelector =
         | All
@@ -229,7 +231,13 @@ module SelectorsParser =
         | Substring // *=
         | Equal // =
 
+    and PsudoIdent =
+        | Function of string
+        | Ident of string
 
+    and Psudo = 
+        | Class of PsudoIdent
+        | Element of PsudoIdent
 
     and TypeSelector =
         { Element : ElementSelector
@@ -240,42 +248,37 @@ module SelectorsParser =
         | Class of string
         | Id of string
         | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
-        | PsudoClass of string //ident
-        | PsudoElement of string //ident 
+        | Psudo of Psudo 
         | Negation of SimpleSelector
+
+
+    and NegationArg =
+        | Class of string
+        | Id of string
+        | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
+        | Psudo of Psudo 
         | TypeSelector of TypeSelector
 
     and SelectorSeq =
-        TypeSelector * SimpleSelector list   
+        { Type : TypeSelector 
+          Selectors : SimpleSelector list }
+
 
     type Stylesheet =
         Rule list
     
     and SelectorGroup =
-        SelectorSeq list
+        | Single of SelectorSeq
+        | Multiple of {| Head : SelectorSeq; Ls : (Combinator * SelectorSeq) [] |}
+
+
 
     and Rule =
         | Qualified of SelectorGroup list * BlockShape
         | At of string * SelectorGroup list * BlockShape
 
 
-        //    let parseNamespaceSelector =
-        //        attempt (
-        //            (identifier |>> NamespaceSelector.Name 
-        //            <|> (pchar '*' >>% NamespaceSelector.All)
-        //            <|> preturn NamespaceSelector.Empty)
-        //            .>> pchar '|') 
-        //        <|> preturn NamespaceSelector.All
-        
-        //    let parseElementSelector = 
-        //        identifier |>> ElementSelector.Name
-        //        <|> (pchar '*' >>% ElementSelector.All)
-        //        <|> preturn ElementSelector.All
-        
-        //    let parseTypeSelector = 
-        //        parseNamespaceSelector .>>. parseElementSelector 
-        //        |>> (fun (x,y) -> { Element = y; Namespace = x})
-                
+
                  
         //    let parseMatch =
         //        (pstring "~=" >>% Match.Includes)
@@ -318,57 +321,88 @@ module SelectorsParser =
         //        <|> attempt parsePseudoElement
         //        <|> attempt parseNegation
         
-                
-        
-        //    let parseSelectorSeq = 
-        //        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
+
 
         
-    let (|Combinator|_|) input =
-      match input with
-      | ComponentShape.Preserved(l)::ls ->
+    let (|Combinator|_|) = function
+      | Head(ComponentShape.Preserved(l),tail) ->
         match l with
-        | Token.Delim('>') -> Some(Child,ls)
-        | Token.Delim('*') -> Some(Desendent,ls)
-        | Token.Delim('+') -> Some(Next,ls)
+        | Token.Delim('>') -> Some(Child,tail)
+        | Token.Delim('*') -> Some(Desendent,tail)
+        | Token.Delim('+') -> Some(Next,tail)
         | _ -> None
       | _ -> None
                         
-        //    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
-        //        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
+
         
+    let (|MaybeWhitespace|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Whitespace(_))) left -> Some(left)
+        | input -> Some(input)
 
+    let (|Class|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('.'))) (Head (ComponentShape.Preserved(Token.Ident(str)),left)) -> Some(str,left)
+        | _ -> None
 
-    let (|TypeSelector|_|) (input : ComponentShape list) =
+    let (|SimpleSelector|_|) = function
+        | Class(cls,rest) -> Some(SimpleSelector.Class(cls),rest)
+        //todo
+        | _ -> None
+
+    let (|ElementSelctor|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('*'))) left -> Some(ElementSelector.All,left)
+        | Head (ComponentShape.Preserved(Token.Ident(str)), left) -> Some(ElementSelector.Name(str),left)
+        | left -> Some(ElementSelector.All,left)
+
+    let (|NamespaceSelector|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('*'))) (Fst (ComponentShape.Preserved(Token.Delim('|'))) left) -> Some(NamespaceSelector.AllNamespaces,left)
+        | Fst (ComponentShape.Preserved(Token.Delim('|'))) left -> Some(NamespaceSelector.NoNamespace,left)
+        | Head (ComponentShape.Preserved(Token.Ident(str)), Fst (ComponentShape.Preserved(Token.Delim('|'))) left ) -> Some(NamespaceSelector.Namespace(str),left)
+        | left -> Some(NamespaceSelector.DefultNamespace,left)
+
+    let (|TypeSelector|_|) = function
+        | NamespaceSelector(ns,ElementSelctor(es,left)) -> Some({Namespace = ns; Element = es},left)
+        | _ -> None
+
+    let (|SelectorSequence|_|) (input : IStream<ComponentShape>)  =
         match input with
-        | 
+        | TypeSelector(typ,left) ->
+          let q,rest = 
+            ([],left)
+            |> Stream.looper (fun (results,x) -> 
+              match x with
+              | SimpleSelector(s,left) -> Some(s::results,left),true
+              | left -> Some(results,left),false)
+          Some({Type = typ; Selectors = q},rest)
+        | _ -> None
 
-    let (|SelectorSeq|_|) (input : ComponentShape list) : SelectorSeq = 
+    let (|SelectorSeq|_|) = (|MaybeWhitespace|_|) >>. (|SelectorSequence|_|) .>> (|MaybeWhitespace|_|)
+
+    let selectorGroup (input : IStream<ComponentShape>) =
         match input with
-        | TypeSelector ts left ->
-        | left ->
+        | SelectorSeq(head,left) ->
+          (SelectorGroup.Single(head),left)
+          |> Stream.looper (fun (results,x) ->
+              match x with
+              | Combinator(c,SelectorSeq(s,left)) -> 
+                let result = 
+                  match results with
+                  | SelectorGroup.Single(first) -> SelectorGroup.Multiple({|Head = first; Ls = [|c,s|]|})
+                  | SelectorGroup.Multiple(many) -> SelectorGroup.Multiple({|Head = many.Head; Ls = Array.append many.Ls [|c,s|]|})
+                Some(result,left),true
+              | left -> Some(results,left),false
+            )
+          |> Some
+        | _ -> None
 
-    let (|Selector|_|) input =
-
-
-    let (|NextSelectorGroup|_|) = function
-      | ComponentShape.Preserved(Token.Comma) :: ComponentShape.Preserved(Token.Whitespace(_)) :: left -> Some(left)
-      | ComponentShape.Preserved(Token.Comma) :: left -> Some(left)
+    let nextSelectorGroup = function
+      | Fst (ComponentShape.Preserved(Token.Comma)) (MaybeWhitespace(left)) -> Some(left)
       | _ -> None
 
     let parseSelectorGroup (input : ComponentShape list) : SelectorGroup list = 
-      Stream.sepBy1 Selector NextSelectorGroup input |> Option.get
+      let mem = ref (input |> List.toArray)
+      let stream = Stream(mem,20)
+      sepBy1 selectorGroup nextSelectorGroup stream |> Option.get |> fst
 
-        //([],input)
-        //|> looper (fun (results,x) -> 
-        //    match x with
-        //    | Selector selseq left -> 
-        //      match left with
-        //      | NextSelectorGroup left2 -> Some(results,left),true
-        //      | _ -> Some(results,left),false
-        //    | _ -> None, false
-        //    ) 
-        //|> fst
 
     let parseRule (r : RuleShape) : Rule =
         match r with

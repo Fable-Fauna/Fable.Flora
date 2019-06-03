@@ -108,9 +108,27 @@ let looper fn init =
         | _ -> loop <- false
     state
 
+let (|Head|_|) (input : IStream<'a>) =
+  match input.Head() with
+  | Some(v) -> Some(v,input.Consume(1))
+  | _ -> None
+
+let (|Fst|_|) value (input : IStream<'a>) =
+    match input.Head() with
+    | Some(v) when v = value -> Some(input.Consume(1))
+    | _ -> None
+
 let (.>>.) (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a * 'b,'t> =
   fun x ->
     (p x) |> Option.bind (fun (a,y) -> (q y) |> Option.bind (fun (b,z) -> Some((a,b),z)))
+
+let (>>.) (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'b,'t> =
+  fun x ->
+    (p x) |> Option.bind (fun (a,y) -> (q y) |> Option.bind (fun (b,z) -> Some(b,z)))
+
+let (.>>) (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a,'t> =
+  fun x ->
+    (p x) |> Option.bind (fun (a,y) -> (q y) |> Option.bind (fun (b,z) -> Some(a,z)))
 
 let sepBy1 (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a list,'t> =
   fun x ->
