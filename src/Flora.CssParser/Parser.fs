@@ -324,14 +324,7 @@ module SelectorsParser =
 
 
         
-    let (|Combinator|_|) = function
-      | Head(ComponentShape.Preserved(l),tail) ->
-        match l with
-        | Token.Delim('>') -> Some(Child,tail)
-        | Token.Delim('*') -> Some(Desendent,tail)
-        | Token.Delim('+') -> Some(Next,tail)
-        | _ -> None
-      | _ -> None
+
                         
 
         
@@ -374,6 +367,15 @@ module SelectorsParser =
               | left -> Some(results,left),false)
           Some({Type = typ; Selectors = q},rest)
         | _ -> None
+
+    let (|Combinator|_|) = function
+      | Head(ComponentShape.Preserved(l),tail) ->
+        match l with
+        | Token.Delim('>') -> Some(Child,tail)
+        | Token.Delim('*') -> Some(Desendent,tail)
+        | Token.Delim('+') -> Some(Next,tail)
+        | _ -> None
+      | _ -> None
 
     let (|SelectorSeq|_|) = (|MaybeWhitespace|_|) >>. (|SelectorSequence|_|) .>> (|MaybeWhitespace|_|)
 
