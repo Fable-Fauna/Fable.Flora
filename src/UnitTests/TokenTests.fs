@@ -55,19 +55,24 @@ let AccepectenceTests =
             let testText = File.ReadAllText("../../../../../test/tailwind.css")
             let tstream = tokenStream testText
             let pshape = parseShape tstream
-            Expect.isTrue (tstream.Length > 0) (sprintf "token length: %i"  tstream.Length)
+            let ptree = parseStylesheet pshape
+            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  tstream.Length)
         };
 
         test "bulma" {
             let testText = File.ReadAllText("../../../../../test/bulma.css")
             let tstream = tokenStream testText
-            Expect.isTrue (tstream.Length > 0) (sprintf "token length: %i"  tstream.Length)
+            let pshape = parseShape tstream
+            let ptree = parseStylesheet pshape
+            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  tstream.Length)
         }
 
         test "bootstrap" {
             let testText = File.ReadAllText("../../../../../test/bootstrap.css")
             let tstream = tokenStream testText
-            Expect.isTrue (tstream.Length > 0) (sprintf "token length: %i"  tstream.Length)
+            let pshape = parseShape tstream
+            let ptree = parseStylesheet pshape
+            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  tstream.Length)
         }
 
 

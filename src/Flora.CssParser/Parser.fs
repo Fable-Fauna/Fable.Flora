@@ -315,6 +315,7 @@ module SelectorsParser =
         | Fst (ComponentShape.Preserved(Token.SuffixMatch)) rest -> Some(Match.Suffix,rest)
         | Fst (ComponentShape.Preserved(Token.SubstringMatch)) rest -> Some(Match.Substring,rest)
         | Fst (ComponentShape.Preserved(Token.Delim('='))) rest -> Some(Match.Equal,rest)
+        | _ -> None
 
    
     let (|Attribute|_|) = function
@@ -360,14 +361,15 @@ module SelectorsParser =
           let mem = ref (blk |> List.toArray)
           let stream = Stream(mem,20)
           match (MaybeWhitespace stream) with
-          | Class(cls,rest) -> Some(SimpleSelector.Class(cls),rest)
-          | Identifier(str,rest) -> Some(SimpleSelector.Id(str),rest)
-          | Attribute(attr,rest) -> Some(SimpleSelector.Attribute(attr),rest)
-          | PesudoElement(psu,rest) -> Some(SimpleSelector.Psudo(psu),rest)
+          | Class(cls,rest) -> Some(SimpleSelector.Class(cls),next)
+          | Identifier(str,rest) -> Some(SimpleSelector.Id(str),next)
+          | Attribute(attr,rest) -> Some(SimpleSelector.Attribute(attr),next)
+          | PesudoElement(psu,rest) -> Some(SimpleSelector.Psudo(psu),next)
           | _ -> failwith "not failure"
-        
+        | _ -> None
 
-    let (|SimpleSelector|_|) = function
+    let (|SimpleSelector|_|) input = 
+        match (MaybeWhitespace input) with
         | Class(cls,rest) -> Some(SimpleSelector.Class(cls),rest)
         | Identifier(str,rest) -> Some(SimpleSelector.Id(str),rest)
         | Attribute(attr,rest) -> Some(SimpleSelector.Attribute(attr),rest)
@@ -431,3 +433,8 @@ module SelectorsParser =
 
     let parseStylesheet (shape : StylesheetShape) : Stylesheet =
         shape |> List.map parseRule 
+
+    let parseCss (text : string) =
+      let tstream = tokenStream text
+      let pshape = parseShape tstream
+      parseStylesheet pshape
