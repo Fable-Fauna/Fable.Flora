@@ -5,30 +5,7 @@ open System.Text
 open System.Text.RegularExpressions
 
 //https://www.w3.org/TR/css-syntax-3/
-
-type Parse<'T> = 
-    { Comments : string list 
-      Errors : string list
-      Result : 'T option}
-    
-type Parser<'T> = string -> Parse<'T> * string
-
-let (.>>) (p1 : Parser<'a>) (p2 : Parser<'b>) = 
-    fun str -> 
-        match (p1 str) with
-        | (R1,left) when R1.Result.IsSome ->
-            match (p2 left) with
-            | (R2,left) when R2.Result.IsSome ->
-                {R1 with Comments = R1.Comments @ R2.Comments},left
-            | (R2,left) -> 
-                {Comments = R1.Comments @ R2.Comments
-                 Errors = R1.Errors @ R2.Errors
-                 Result = None}, left
-        | x -> x
-                   
-
-
-type Consumer = Parser<unit>
+open Stream
 
 type NumberToken =
     { Exponent : (bool * string) option
@@ -68,54 +45,50 @@ type Token =
     | ParenEnd
     
 
+//let (|PChar|_|) (char : char) (input : string) =
+//    match input with
+//    | str when str.StartsWith (string char) -> Some(input.Remove(0,1))
+//    | _ -> None
 
-// let fixStream (str : string) =
-//     str.Replace('\u000D','\u000A').Replace('\u000C','\u000A')
+//let (|PString|_|) (pattern : string) (input : string) =
+//    match input with
+//    | str when str.StartsWith pattern -> 
+//        Some(input.Remove(0,pattern.Length))
+//    | _ -> None    
 
-let (|PChar|_|) (char : char) (input : string) =
-    match input with
-    | str when str.StartsWith (string char) -> Some(input.Remove(0,1))
-    | _ -> None
+//let (|Between|_|) (char : char) (input : string) =
+//    match input with
+//    | PChar char str -> 
+//        let i = str.IndexOf char
+//        let s = str.Substring(0,i)
+//        Some(s,input.Remove(0,i+2))
+//    | _ -> None    
 
-let (|PString|_|) (pattern : string) (input : string) =
-    match input with
-    | str when str.StartsWith pattern -> 
-        Some(input.Remove(0,pattern.Length))
-    | _ -> None    
+//let (|Char|_|) (input : string) =
+//    if input.Length > 0 then
+//        Some(input.[0],input.Remove(0,1)) 
+//    else None    
 
-let (|Between|_|) (char : char) (input : string) =
-    match input with
-    | PChar char str -> 
-        let i = str.IndexOf char
-        let s = str.Substring(0,i)
-        Some(s,input.Remove(0,i+2))
-    | _ -> None    
+//let (|NewLine|_|) (input : string) =
+//    if input.StartsWith("\u000D\u000A") then Some(input.Substring(2))
+//    else if input.StartsWith("\u000D") then Some(input.Substring(1))
+//    else if input.StartsWith("\u000C") then Some(input.Substring(1))
+//    else if input.StartsWith("\u000A") then Some(input.Substring(1))
+//    else None
 
-let (|Char|_|) (input : string) =
-    if input.Length > 0 then
-        Some(input.[0],input.Remove(0,1)) 
-    else None    
-
-let (|NewLine|_|) (input : string) =
-    if input.StartsWith("\u000D\u000A") then Some(input.Substring(2))
-    else if input.StartsWith("\u000D") then Some(input.Substring(1))
-    else if input.StartsWith("\u000C") then Some(input.Substring(1))
-    else if input.StartsWith("\u000A") then Some(input.Substring(1))
-    else None
-
-let (|Comment|_|) (input : string) =
+let (|Comment|_|) (input : Stream<char>) =
     if input.StartsWith("/*") then
         let index = input.IndexOf("*/",2)
         Some(input.Substring(2,index), input.Substring(index+2))
     else None
 
-let (|Space|_|) (input : string) =
+let (|Space|_|) (input : Stream<char>) =
     match input with
     | NewLine(left) -> Some(left)
     | str when str.StartsWith("\t") || str.StartsWith(" ") -> Some(input.Substring(1))
     | _ -> None
 
-let (|MustWhitespace|) (input : string) =
+let (|MustWhitespace|) (input : Stream<char>) =
     let mutable loop = true
     let mutable ins = input
     let mutable comment = []
@@ -126,12 +99,12 @@ let (|MustWhitespace|) (input : string) =
         | _ -> loop <- false
     Token.Whitespace(comment),ins
     
-let (|Whitespace|_|) (input : string) =
+let (|Whitespace|_|) (input : Stream<char>) =
     let result = (|MustWhitespace|) input
     if (snd result).Length = input.Length then None
     else Some(result)
 
-let (|HexDigit|_|) (input : string) =
+let (|HexDigit|_|) (input : Stream<char>) =
     match input.[0] with
     | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
     | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' 
@@ -178,7 +151,7 @@ let hexToUni (input : string) =
     Encoding.UTF8.GetString(ary)
 
 
-let (|Escape|_|) (input : string) =
+let (|Escape|_|) (input : Stream<char>) =
     if input.[0] = '\\' then
         let mutable str = input.Remove(0,1)
         let mutable hex = ""
@@ -202,7 +175,7 @@ let (|Escape|_|) (input : string) =
     else None       
 
 
-let (|IdentCodon|_|) (input : string) =
+let (|IdentCodon|_|) (input : Stream<char>) =
     let c = input.[0] |> string
     match UTF8Encoding.UTF8.GetBytes(c) with
     | [|u|] when u >= 65uy && u <= 90uy -> Some(c)
@@ -212,7 +185,7 @@ let (|IdentCodon|_|) (input : string) =
     | ary when ary.Length > 1 -> Some(c) //?
     | _ -> None
 
-let (|Ident|_|) (input : string) = 
+let (|Ident|_|) (input : Stream<char>) = 
     let mutable loop = true
     let mutable fst = true
     let mutable result,rest = "",input
@@ -255,7 +228,7 @@ let (|Ident|_|) (input : string) =
         if result = "" then None else Some(result,rest)
     else None
 
-let (|Function|_|) (input : string) =
+let (|Function|_|) (input : Stream<char>) =
     match input with
     | Ident(id,rest) ->
         match rest with
@@ -264,12 +237,12 @@ let (|Function|_|) (input : string) =
     | _ -> None
 
 
-let (|AtKeyword|_|)  (input : string) =
+let (|AtKeyword|_|)  (input : Stream<char>) =
     match input with
     | PChar '@' (Ident(id,rest)) -> Some(id,rest)
     | _ -> None
 
-let (|HashToken|_|) (input : string) =
+let (|HashToken|_|) (input : Stream<char>) =
     match input with
     | PChar '#' str -> 
         let mutable loop = true
@@ -289,7 +262,7 @@ let (|HashToken|_|) (input : string) =
         Some(fst,rest)
     | _ -> None
 
-let (|StringToken|_|) (input : string) = 
+let (|StringToken|_|) (input : Stream<char>) = 
     match input with
     | Between '"' (str, left)
     | Between ''' (str, left) ->
@@ -310,7 +283,7 @@ let (|StringToken|_|) (input : string) =
         Some(result,left)    
     | _ -> None
 
-let (|UrlUnQuote|_|) (input : string) =
+let (|UrlUnQuote|_|) (input : Stream<char>) =
     let mutable loop, result, rest  = true,"",input
     let mutable ret = false
     while loop do 
@@ -336,7 +309,7 @@ let (|UrlUnQuote|_|) (input : string) =
             ret <- true
     if ret then Some(result) else None        
 
-let (|UrlToken|_|) (input : string) =
+let (|UrlToken|_|) (input : Stream<char>) =
     match input with
     | PString "url" (PChar '(' str) ->
         let i = str.IndexOf ')'
@@ -353,7 +326,7 @@ let (|UrlToken|_|) (input : string) =
         | _ -> None
     | _ -> None                
 
-let (|Digits|_|) (input : string) =
+let (|Digits|_|) (input : Stream<char>) =
     let mutable loop, result, rest  = true,"",input
     while loop do 
        match rest with
@@ -374,7 +347,7 @@ let (|Digits|_|) (input : string) =
         Some(result,rest)
     else None     
 
-let (|NumberToken|_|) (input : string) =
+let (|NumberToken|_|) (input : Stream<char>) =
     let neg,left1 = 
         match input with 
         | PChar '+' left -> false,left
@@ -405,7 +378,7 @@ let (|NumberToken|_|) (input : string) =
            Decimal = if decimal = "" then None else Some(decimal)}, left3)
 
 
-let tokenise (input : string) =
+let tokenise (input : Stream<char>) =
     match input with
     | Whitespace(t,left) -> t,left
     | StringToken(t,left) -> Token.String(t),left
@@ -439,7 +412,7 @@ let tokenise (input : string) =
     //eof
     | _ -> Token.Delim input.[0], input.Remove(0,1)
 
-let tokenStream (input : string) =
+let tokenStream (input : Stream<char>) =
     input |> Seq.unfold (fun str -> 
         if str.Length = 0 then None
         else 
