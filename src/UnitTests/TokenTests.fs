@@ -7,6 +7,7 @@ open Expecto
 open System.IO
 open Tests
 open CssProvider.ParseShaper
+open CssProvider.SelectorsParser
 
 [<Theory>]
 [<InlineData("\"letters\"")>]
@@ -93,6 +94,33 @@ let ShapeTests =
             let tstream = tokenStream testText
             let pshape = parseShape tstream
             Expect.isTrue (pshape.Length = 2) (sprintf "token length: %i"  tstream.Length)
+        };
+
+       
+    ]
+
+[<Tests>]
+let ParseTests =
+    testList "Parse Tests" [
+        test "tailwind" {
+            let testText = ".select-none {
+            -webkit-user-select: none;
+               -moz-user-select: none;
+                -ms-user-select: none;
+                    user-select: none;
+}
+
+.select-text {
+            -webkit-user-select: text;
+               -moz-user-select: text;
+                -ms-user-select: text;
+                    user-select: text;
+}
+"
+            let tstream = tokenStream testText
+            let pshape = parseShape tstream
+            let ptree = parseStylesheet pshape
+            Expect.isTrue (ptree.Length = 2) (sprintf "token length: %i"  tstream.Length)
         };
 
        
