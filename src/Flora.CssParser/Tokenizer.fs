@@ -76,41 +76,48 @@ type Token =
 //    else if input.StartsWith("\u000A") then Some(input.Substring(1))
 //    else None
 
-let (|Comment|_|) (input : Stream<char>) =
-    if input.StartsWith("/*") then
-        let index = input.IndexOf("*/",2)
-        Some(input.Substring(2,index), input.Substring(index+2))
-    else None
+let (|SplitWith|_|) test (input : IStream<char>) =
+    match input.SubSearch ((=),test) with
+    | Some(pos) -> 
+      match input.Read pos with
+      | Some(chars) -> Some(chars,input.Consume(pos + test.Length))
+      | _ -> failwith "splitwith is bork"
+    | _ -> None
 
-let (|Space|_|) (input : Stream<char>) =
+let (|Comment|_|) (input : IStream<char>) =
+    match input with 
+    | PString "/*" (SplitWith [|'*';'/'|] (chars,rest)) ->Some(string chars,rest)
+    | _ -> None
+
+
+let (|Space|_|) (input : IStream<char>) =
     match input with
-    | NewLine(left) -> Some(left)
-    | str when str.StartsWith("\t") || str.StartsWith(" ") -> Some(input.Substring(1))
+    | NewLine rest -> Some(rest)
+    | PChar '\t' rest -> Some(rest)
+    | PChar ' ' rest -> Some(rest)
     | _ -> None
 
-let (|MustWhitespace|) (input : Stream<char>) =
-    let mutable loop = true
-    let mutable ins = input
-    let mutable comment = []
-    while loop do
-        match ins with
-        | Space(str) -> ins <- str
-        | Comment(cmt,str) -> ins <- str; comment <- cmt :: comment 
-        | _ -> loop <- false
-    Token.Whitespace(comment),ins
+let (|Whitespace|_|) (input : IStream<char>) =
+    ([],input)
+    |> Stream.looper (fun (comments,rest) -> 
+      match rest with
+      | Space(left) -> Some(comments,left), true
+      | Comment(cmt,left) -> Some(cmt :: comments,left), true
+      | _ -> if comments = [] then None,false else Some(comments,rest),false )
+    |> (fun (cmts,rest) -> Some(Token.Whitespace(cmts),rest))
+
+let (|MustWhitespace|) (input : IStream<char>) =
+    match input with
+    | Whitespace(token,rest) -> (token,rest)
+    | _ -> failwith "must whitespace"
     
-let (|Whitespace|_|) (input : Stream<char>) =
-    let result = (|MustWhitespace|) input
-    if (snd result).Length = input.Length then None
-    else Some(result)
+let hexDigits = [| '0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'A'; 'B'; 'C'; 'D'; 'E'; 'F' |]
 
-let (|HexDigit|_|) (input : Stream<char>) =
-    match input.[0] with
-    | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-    | 'a' | 'b' | 'c' | 'd' | 'e' | 'f' 
-    | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' 
-        -> Some(input.[0],input.Remove(0,1))
+let (|HexDigit|_|) (input : IStream<char>) =
+    match input with
+    | Head(t,rest) when Array.contains t hexDigits -> Some(t,rest)
     | _ -> None
+
 
 let hexToByte (input : char) =
     match input with
@@ -151,84 +158,59 @@ let hexToUni (input : string) =
     Encoding.UTF8.GetString(ary)
 
 
-let (|Escape|_|) (input : Stream<char>) =
-    if input.[0] = '\\' then
-        let mutable str = input.Remove(0,1)
-        let mutable hex = ""
-        match str with
-        | NewLine(left) -> failwith "cannot escape newline"
-        | HexDigit(h,left) ->
-            let mutable loop = 1
-            str <- left
-            hex <- hex + (string) h
-            while loop <= 6 do
-                match str with
-                | "" -> loop <- 10
-                | HexDigit(h, left) -> 
-                    str <- left
-                    hex <- hex + (string) h
-                    loop <- loop + 1
-                | Space(left) -> str < left; loop <- 10
-                | _ -> loop <- 10
-            Some(hexToUni(hex), left)
-        | a when a.Length > 1 -> Some(a, input.Remove(0,2))
-    else None       
+let (|Escape|_|) (input : IStream<char>) =
+    match input with
+    | PString "\\" blok ->
+        match blok with
+        | NewLine(_) -> failwith "cannot escape newline"
+        | HexDigit(h,left) -> 
+            ((string h, 1),left)
+            |> Stream.looper (fun ((hex,cnt),stream) ->
+              if cnt <= 6 then
+                match stream with
+                | HexDigit(h, left) -> Some((hex + string h, cnt+1),left),true
+                | Space(left) -> Some((hex, cnt+1),left),false
+                | _ -> None,false
+              else Some((hex, cnt+1),left),false)             
+            |> (fun ((hex,_),stream) -> Some(hexToUni(hex),stream))
 
-
-let (|IdentCodon|_|) (input : Stream<char>) =
-    let c = input.[0] |> string
-    match UTF8Encoding.UTF8.GetBytes(c) with
-    | [|u|] when u >= 65uy && u <= 90uy -> Some(c)
-    | [|u|] when u >= 97uy && u <= 122uy -> Some(c)
-    | [|95uy|] -> Some(c)
-    | [|u|] when u > 128uy -> Some(c)
-    | ary when ary.Length > 1 -> Some(c) //?
+        | Head(chr,left) -> Some(string chr,left)
     | _ -> None
 
-let (|Ident|_|) (input : Stream<char>) = 
-    let mutable loop = true
-    let mutable fst = true
-    let mutable result,rest = "",input
-        //match input with
-        //| a when a.[0] = '-' -> //two?
-        //    match a.Remove(0,1) with
-        //    | IdentCodon(b) -> 
-        //        "-" + b, a.Remove(0,1)
-        //    | Escape(b,left) ->
-        //        b, left
-        //    | _ -> failwith "bad id"
-        //| IdentCodon(a) -> 
-        //    a,input.Remove(0,1)
-        //| Escape(a,left) ->
-        //    a, left
-        //| _ -> loop <- false; "",""
-    if loop then
-        while loop do 
-            match rest with
-            | PChar '-' left -> 
-                if fst then 
-                    match left with
-                    | Escape(b,left2) ->
-                        result <- result + b
-                        rest <- left2
-                    | _ -> 
-                        result <- result + "-" 
-                        rest <- left
-                else do
-                    result <- result + "-"
-                    rest <- left
-                fst <- false
-            | IdentCodon(a) -> 
-                result <- result + a
-                rest <- rest.Remove(0,1)
-            | Escape(a,left) ->
-                result <- result + a
-                rest <- left
-            | _ -> loop <- false
-        if result = "" then None else Some(result,rest)
-    else None
 
-let (|Function|_|) (input : Stream<char>) =
+let (|IdentCodon|_|) (input : IStream<char>) = 
+    match input with
+    | Head(c,left) ->
+        match UTF8Encoding.UTF8.GetBytes([|c|]) with
+        | [|u|] when u >= 65uy && u <= 90uy -> Some(c)
+        | [|u|] when u >= 97uy && u <= 122uy -> Some(c)
+        | [|95uy|] -> Some(c)
+        | [|u|] when u > 128uy -> Some(c)
+        | ary when ary.Length > 1 -> Some(c) //?
+        | _ -> None
+        |> Option.map (fun x -> x,left)
+    | _ -> None
+
+
+let (|Ident|_|) (input : IStream<char>) =
+    let mutable fst = true
+    ("",input)
+    |> Stream.looper (fun (result,n1) -> 
+      match n1 with
+      | PChar '-' n2 -> 
+        if fst then
+          fst <- false
+          match n2 with
+          | Escape(b,n3) -> Some(result + string b, n3),true
+          | _ -> Some(result + "-", n2),true
+        else Some(result + "-", n2),true
+      | IdentCodon(codon,n2) -> Some(result + string codon,n2),true
+      | Escape(b,n2) -> Some(result + string b, n2),true
+      | _ -> if result = "" then None,false else Some(result,n1),false)
+    |> (fun (result,next) -> if result = "" then None else Some(result,next))
+
+
+let (|Function|_|) (input : IStream<char>) =
     match input with
     | Ident(id,rest) ->
         match rest with
@@ -237,117 +219,91 @@ let (|Function|_|) (input : Stream<char>) =
     | _ -> None
 
 
-let (|AtKeyword|_|)  (input : Stream<char>) =
+let (|AtKeyword|_|)  (input : IStream<char>) =
     match input with
     | PChar '@' (Ident(id,rest)) -> Some(id,rest)
     | _ -> None
 
-let (|HashToken|_|) (input : Stream<char>) =
+let (|HashToken|_|) (input : IStream<char>) =
     match input with
-    | PChar '#' str -> 
-        let mutable loop = true
-        let mutable fst, rest = "",str
-        while loop do 
-            match rest with
-            | PChar '-' str -> 
-                fst <- fst + "-"
-                rest <- str
-            | IdentCodon(a) -> 
-                fst <- fst + a
-                rest <- rest.Remove(0,1)
-            | Escape(a,left) ->
-                fst <- fst + a
-                rest <- left
-            | _ -> loop <- false
-        Some(fst,rest)
+    | PChar '#' n1 -> 
+      ("",n1)
+      |> Stream.looper (fun (result,n2) -> 
+        match n2 with
+        | PChar '-' n3 ->  Some(result + "-", n3),true
+        | IdentCodon(codon,n2) -> Some(result + string codon,n2),true
+        | Escape(b,n2) -> Some(result + string b, n2),true
+        | _ -> if result = "" then None,false else Some(result,n1),false)
+      |> Some
     | _ -> None
 
-let (|StringToken|_|) (input : Stream<char>) = 
+let (|StringToken|_|) (input : IStream<char>) = 
     match input with
-    | Between '"' (str, left)
-    | Between ''' (str, left) ->
-        let mutable loop, result, rest  = true,"",str
-        while loop do 
-            match rest with
-            | "" -> loop <- false
-            | Escape(a,l) ->
-                result <- result + a
-                rest <- l
-            | PChar '\\' (NewLine(l)) -> 
-                result <- result + "\u000A"
-                rest <- l
-            | Char (char, l) -> 
-                result <- result + string char
-                rest <- l
-            | _ -> loop <- false
-        Some(result,left)    
+    | Between '"' (str, next)
+    | Between ''' (str, next) ->
+        let mem = ref (str)
+        let stream = Stream(mem,20)
+        ("",stream :> IStream<char>)
+        |> Stream.looper (fun (result,n1) -> 
+          match n1 with
+          | PChar '\\' (NewLine(n2)) ->  Some(result + "\u000A", n2),true
+          | Char(codon,n2) -> Some(result + string codon,n2),true
+          | Escape(b,n2) -> Some(result + string b, n2),true
+          | _ -> Some(result,n1),false)
+        |> (fun (str,_) -> Some(str,next))
     | _ -> None
 
-let (|UrlUnQuote|_|) (input : Stream<char>) =
-    let mutable loop, result, rest  = true,"",input
-    let mutable ret = false
-    while loop do 
-        match rest with
-        | Escape(a,left) ->
-            result <- result + a
-            rest <- left
-        | Char (char, left) when 
-            char = '\\' 
-            || char = '"' 
-            || char = ''' 
-            || char = '('
-            || char = ')'
-            || Char.IsControl char
-            -> loop <- false //failwith "url cannot contain \\ \" ' ( ) "
-        | Whitespace(left) -> loop <- false
-        | Char (char,left) ->
-            result <- result + string char
-            rest <- left
-        | a -> 
-            result <- result + a
-            loop <- false
-            ret <- true
-    if ret then Some(result) else None        
+//need to test and rethink
+let (|UrlUnQuote|_|) (input : IStream<char>) =
+    let mutable ret = false //used to check the entier stream is processed
+    ("",input)
+    |> Stream.looper (fun (result,n1) -> 
+      match n1 with
+      | Escape(a,left) -> Some(result + a,left),true
+      | Char (char, left) when 
+        char = '\\' 
+        || char = '"' 
+        || char = ''' 
+        || char = '('
+        || char = ')'
+        || Char.IsControl char
+        -> None,false //failwith "url cannot contain \\ \" ' ( ) "
+      | Whitespace(left) -> Some(result,n1),false
+      | Char (char,left) -> Some(result + string char,left),true
+      | _ ->  //endofstream 
+        ret <- true
+        Some(result,n1),false)
+    |> (fun (result,rest) -> if ret then Some(result,rest) else None) 
 
-let (|UrlToken|_|) (input : Stream<char>) =
+        
+
+let (|UrlToken|_|) (input : IStream<char>) =
     match input with
-    | PString "url" (PChar '(' str) ->
-        let i = str.IndexOf ')'
-        let inner = str.Substring(0,i)
-        let rest = input.Remove(0,i+1)
-        match inner with
+    | PString "url" (PChar '(' (SplitWith [|')'|] (inner,rest))) ->
+        let istream = Stream(ref inner,20) :> IStream<char>
+        match istream with
         | Whitespace(_,left) ->
             match left with
-            | UrlUnQuote(out) -> Some(out,rest)
+            | UrlUnQuote(out,_) -> Some(out,rest)
             | StringToken(out,Whitespace(_,left)) -> 
-                if left.Length > 0 then failwith "invliad url token"
+                if left.Head().IsSome then failwith "invliad url token"
                 Some(out,rest)
             | _ -> None
         | _ -> None
     | _ -> None                
 
-let (|Digits|_|) (input : Stream<char>) =
-    let mutable loop, result, rest  = true,"",input
-    while loop do 
-       match rest with
-       | PChar '0' left
-       | PChar '1' left
-       | PChar '2' left
-       | PChar '3' left
-       | PChar '4' left
-       | PChar '5' left
-       | PChar '6' left
-       | PChar '7' left
-       | PChar '8' left
-       | PChar '9' left ->
-            result <- result + string rest.[0]
-            rest <- left
-       | _ -> loop <- false   
-    if result.Length > 0 then
-        Some(result,rest)
-    else None     
+let charDigits = [|'0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'|]
 
-let (|NumberToken|_|) (input : Stream<char>) =
+let (|Digits|_|) (input : IStream<char>) =
+    ("",input)
+    |> Stream.looper (fun (result,n1) -> 
+       match n1 with
+       | Char (chr,n2) when Array.contains chr charDigits -> Some(result+string chr,n2),true
+       | _ -> Some(result,n1),false)
+    |> (fun (result,next) -> if result.Length > 0 then Some(result,next) else None)
+
+
+let (|NumberToken|_|) (input : IStream<char>) =
     let neg,left1 = 
         match input with 
         | PChar '+' left -> false,left
@@ -378,7 +334,7 @@ let (|NumberToken|_|) (input : Stream<char>) =
            Decimal = if decimal = "" then None else Some(decimal)}, left3)
 
 
-let tokenise (input : Stream<char>) =
+let tokenise (input : IStream<char>) =
     match input with
     | Whitespace(t,left) -> t,left
     | StringToken(t,left) -> Token.String(t),left
@@ -410,12 +366,9 @@ let tokenise (input : Stream<char>) =
     | PString "~=" left -> Token.IncludeMatch, left
     //unicode range
     //eof
-    | _ -> Token.Delim input.[0], input.Remove(0,1)
+    | Char (chr,left) -> Token.Delim chr, left
 
-let tokenStream (input : Stream<char>) =
-    input |> Seq.unfold (fun str -> 
-        if str.Length = 0 then None
-        else 
-            let t,s = tokenise str
-            Some(t,s)
+let tokenStream (input : IStream<char>) =
+    input |> Seq.unfold (fun stream -> 
+        if stream.Head().IsNone then None else Some(tokenise stream)
         ) |> Seq.toList

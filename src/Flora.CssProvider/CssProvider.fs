@@ -6,7 +6,6 @@ open Fable.Import.JS
 open Fable.Import.Browser
 open Microsoft.FSharp.Core.CompilerServices
 open System.IO
-open FParsec
 open ProviderImplementation.ProvidedTypes
 open FSharp.Quotations
 open ProviderImplementation

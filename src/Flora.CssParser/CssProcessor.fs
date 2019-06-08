@@ -2,7 +2,6 @@
 
 open CssProvider.SelectorsParser
 open System.IO
-open FParsec
 
 let procCss (css : Rule list) = 
     let q = seq {

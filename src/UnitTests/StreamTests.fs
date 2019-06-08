@@ -14,7 +14,7 @@ let stream str =
 
 [<Tests>]
 let tests =
-    testList "stream tests" [
+    ftestList "stream tests" [
 
 
         test "pchar" {
@@ -22,13 +22,18 @@ let tests =
             | PChar 's' left -> Expect.equal (left.Head()) (Some('a')) "pchar leaves rest"
         }
 
+        test "pstring" {
+            let result = (|PString|_|) "sa" (stream "sa")
+            Expect.equal (result.Value.Head()) (None) "pstring can take two"
+        }
+
         test "between" {
             match stream "asa" with
-            | Between 'a' (result,left) -> Expect.equal result (Some([|'s'|])) "between takes inside"; Expect.equal (left.Head()) None "nothing left"
+            | Between 'a' (result,left) -> Expect.equal result [|'s'|] "between takes inside"; Expect.equal (left.Head()) None "nothing left"
         }
         test "between 2" {
             match stream "assas" with
-            | Between 'a' (result,left) -> Expect.equal result (Some([|'s'; 's'|])) "between takes inside"; Expect.equal (left.Head()) (Some('s')) "nothing left"
+            | Between 'a' (result,left) -> Expect.equal result [|'s'; 's'|] "between takes inside"; Expect.equal (left.Head()) (Some('s')) "nothing left"
         }
 
     ]

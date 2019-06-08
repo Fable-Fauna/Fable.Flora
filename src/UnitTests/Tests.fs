@@ -2,7 +2,6 @@
 
 open System
 open Xunit
-open FParsec
 open CssProvider
 //open Parser
 //open System.IO

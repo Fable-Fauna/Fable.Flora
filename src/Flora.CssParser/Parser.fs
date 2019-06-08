@@ -1,6 +1,5 @@
 namespace CssProvider
 open System
-open FParsec
 
 
 
@@ -435,6 +434,8 @@ module SelectorsParser =
         shape |> List.map parseRule 
 
     let parseCss (text : string) =
-      let tstream = tokenStream text
+      let tref = ref (text.ToCharArray())
+      let stream = Stream(tref,20) :> IStream<char>
+      let tstream = tokenStream stream
       let pshape = parseShape tstream
       parseStylesheet pshape

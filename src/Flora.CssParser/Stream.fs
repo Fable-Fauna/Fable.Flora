@@ -166,12 +166,12 @@ let (|Between|_|) (char : char) (input : IStream<char>) =
     | PChar char str -> 
         match str.Search((fun x y -> x = y),char) with
         | Some(i) -> 
-          let s = str.Read(i - str.Position())
-          Some(s,str.Consume(s.Value.Length + 1))
+          str.Read(i - str.Position())
+          |> Option.map (fun chrs -> chrs, str.Consume(chrs.Length + 1))
         | _ -> None
     | _ -> None    
     
-let (|Char|_|) (input : IStream<char>) = input.Head() |> Option.map (fun x -> x,input.Consume(1);input)
+let (|Char|_|) (input : IStream<char>) = input.Head() |> Option.map (fun x -> x,input.Consume(1))
 
     
 let (|NewLine|_|) (input : IStream<char>) =
@@ -182,3 +182,4 @@ let (|NewLine|_|) (input : IStream<char>) =
       | _ -> Some(input.Consume(1))
     | Some(chr) when chr = '\u000C' || chr = '\u000A' -> Some(input.Consume(1))
     | _ -> None
+
