@@ -36,4 +36,11 @@ let tests =
             | Between 'a' (result,left) -> Expect.equal result [|'s'; 's'|] "between takes inside"; Expect.equal (left.Head()) (Some('s')) "nothing left"
         }
 
+        test "whitespace" {
+          let result = (|Whitespace|_|) (stream "  sa")
+
+          Expect.isTrue result.IsSome "takes stream"
+          Expect.equal ((snd result.Value).Head().Value) 's' "whitespace consumes correctly"
+        }
+
     ]

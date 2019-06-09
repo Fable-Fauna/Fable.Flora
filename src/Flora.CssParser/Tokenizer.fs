@@ -6,6 +6,8 @@ open System.Text.RegularExpressions
 
 //https://www.w3.org/TR/css-syntax-3/
 open Stream
+open Stream.ParserBuilder
+open System
 
 type NumberToken =
     { Exponent : (bool * string) option
@@ -43,73 +45,38 @@ type Token =
     | SwiggleEnd
     | ParenStart
     | ParenEnd
-    
+ 
+ 
+let (|Comment|_|)  =
+  parse {
+    let! chrs = PString "/*" >>. SplitWith "*/"
+    return chrs
+  }
 
-//let (|PChar|_|) (char : char) (input : string) =
-//    match input with
-//    | str when str.StartsWith (string char) -> Some(input.Remove(0,1))
-//    | _ -> None
+let (|Space|_|) = NewLine <|> PChar '\t' <|> PChar ' '
 
-//let (|PString|_|) (pattern : string) (input : string) =
-//    match input with
-//    | str when str.StartsWith pattern -> 
-//        Some(input.Remove(0,pattern.Length))
-//    | _ -> None    
+let (|SplitWith|_|) = ParserBuilder.SplitWith
 
-//let (|Between|_|) (char : char) (input : string) =
-//    match input with
-//    | PChar char str -> 
-//        let i = str.IndexOf char
-//        let s = str.Substring(0,i)
-//        Some(s,input.Remove(0,i+2))
-//    | _ -> None    
+let rec whitespace_fn stream =
+  match stream with
+  | Space(_,left) -> 
+    let cmts, ls = whitespace_fn left
+    cmts, ls
+  | Comment(cmt,left) -> 
+    let cmts, ls = whitespace_fn left
+    String(cmt) :: cmts, ls
+  | _ -> [],stream
 
-//let (|Char|_|) (input : string) =
-//    if input.Length > 0 then
-//        Some(input.[0],input.Remove(0,1)) 
-//    else None    
+let whitespace stream =
+  let q,rest = whitespace_fn stream
+  if stream.Position() = rest.Position() then None else Some(Token.Whitespace(q),rest)
 
-//let (|NewLine|_|) (input : string) =
-//    if input.StartsWith("\u000D\u000A") then Some(input.Substring(2))
-//    else if input.StartsWith("\u000D") then Some(input.Substring(1))
-//    else if input.StartsWith("\u000C") then Some(input.Substring(1))
-//    else if input.StartsWith("\u000A") then Some(input.Substring(1))
-//    else None
-
-let (|SplitWith|_|) test (input : IStream<char>) =
-    match input.SubSearch ((=),test) with
-    | Some(pos) -> 
-      match input.Read pos with
-      | Some(chars) -> Some(chars,input.Consume(pos + test.Length))
-      | _ -> failwith "splitwith is bork"
-    | _ -> None
-
-let (|Comment|_|) (input : IStream<char>) =
-    match input with 
-    | PString "/*" (SplitWith [|'*';'/'|] (chars,rest)) ->Some(string chars,rest)
-    | _ -> None
-
-
-let (|Space|_|) (input : IStream<char>) =
-    match input with
-    | NewLine rest -> Some(rest)
-    | PChar '\t' rest -> Some(rest)
-    | PChar ' ' rest -> Some(rest)
-    | _ -> None
-
-let (|Whitespace|_|) (input : IStream<char>) =
-    ([],input)
-    |> Stream.looper (fun (comments,rest) -> 
-      match rest with
-      | Space(left) -> Some(comments,left), true
-      | Comment(cmt,left) -> Some(cmt :: comments,left), true
-      | _ -> if comments = [] then None,false else Some(comments,rest),false )
-    |> (fun (cmts,rest) -> Some(Token.Whitespace(cmts),rest))
+let (|Whitespace|_|) = whitespace
 
 let (|MustWhitespace|) (input : IStream<char>) =
-    match input with
-    | Whitespace(token,rest) -> (token,rest)
-    | _ -> failwith "must whitespace"
+    let opt = whitespace input
+    if opt.IsNone then failwith "must whitespace"
+    else opt
     
 let hexDigits = [| '0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'A'; 'B'; 'C'; 'D'; 'E'; 'F' |]
 
@@ -169,7 +136,7 @@ let (|Escape|_|) (input : IStream<char>) =
               if cnt <= 6 then
                 match stream with
                 | HexDigit(h, left) -> Some((hex + string h, cnt+1),left),true
-                | Space(left) -> Some((hex, cnt+1),left),false
+                | Space(_,left) -> Some((hex, cnt+1),left),false
                 | _ -> None,false
               else Some((hex, cnt+1),left),false)             
             |> (fun ((hex,_),stream) -> Some(hexToUni(hex),stream))
@@ -268,7 +235,7 @@ let (|UrlUnQuote|_|) (input : IStream<char>) =
         || char = ')'
         || Char.IsControl char
         -> None,false //failwith "url cannot contain \\ \" ' ( ) "
-      | Whitespace(left) -> Some(result,n1),false
+      | Whitespace(_,left) -> Some(result,n1),false
       | Char (char,left) -> Some(result + string char,left),true
       | _ ->  //endofstream 
         ret <- true
@@ -279,7 +246,7 @@ let (|UrlUnQuote|_|) (input : IStream<char>) =
 
 let (|UrlToken|_|) (input : IStream<char>) =
     match input with
-    | PString "url" (PChar '(' (SplitWith [|')'|] (inner,rest))) ->
+    | PString "url" (PChar '(' (SplitWith ")" (inner,rest))) ->
         let istream = Stream(ref inner,20) :> IStream<char>
         match istream with
         | Whitespace(_,left) ->

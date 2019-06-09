@@ -63,9 +63,10 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
                   then state.TotalLength - state.Pos - state.Cache.Length 
                   else cacheSize
                 let temp = Array.sub model.Value (state.Pos + state.Cache.Length) readlen
+                let temp2 = Array.append state.Cache temp
                 Stream<'a>(model,cacheSize,{| state with 
                   Pos = state.Pos + len; 
-                  Cache = Array.append (Array.skip len state.Cache) temp|}) :> IStream<'a>                   
+                  Cache = Array.skip len temp2|}) :> IStream<'a>                   
             | _,_ -> failwith "stream consume exceeds limit"
 
 
@@ -95,7 +96,114 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
 
 type ActiveParser<'a,'t> = IStream<'t> -> ('a * IStream<'t>) option
 
-type Combinator<'a,'b,'t> =  ActiveParser<'a,'t> ->  ActiveParser<'b,'t> ->  ActiveParser<'a * 'b,'t>
+module ParserBuilder = 
+    let Return (x: 'a): ActiveParser<'a,'t> =
+      let p stream = Some(x, stream)
+      in p
+
+    let Bind (p: ActiveParser<'a,'t>) (f: 'a -> ActiveParser<'b,'t>) : ActiveParser<'b,'t> =
+          let q stream =
+              match p stream with
+              | Some(x, rest) -> (f x) rest
+              | None -> None
+          in q
+
+    let Combine (p: ActiveParser<'a,'t>) (p2: ActiveParser<'b,'t>) : ActiveParser<'b,'t> =
+        fun stream ->
+          let result = p stream
+          match result with
+          | Some(_,rest) ->
+            p2 rest
+
+    let (>>=) = Bind
+
+    /// If parser p succeeds returns x as a result.
+    let (>>%) p x : ActiveParser<'b,'t> =
+          p >>= (fun _ -> Return x)
+
+    /// Applies parsers p1 and p2 returning the result of p2.
+    let (>>.) p1 p2 : ActiveParser<'b,'t> =
+          p1 >>= (fun _ -> p2)
+
+    /// Applies parsers p1 and p2 returning the result of p1.
+    let (.>>) p1 p2 : ActiveParser<'a,'t> =
+          p1 >>= (fun x -> p2 >>% x)
+      
+    /// Applies parsers p1 and p2 returning both results.
+    let (.>>.) p1 p2: ActiveParser<'a*'b,'t> =
+          p1 >>= (fun x -> p2 >>= (fun y -> Return (x, y)))
+
+    type ParserBuilder() =
+          member x.Zero () = fun stream -> Some((),stream)
+          member x.Bind(p, f) = Bind p f
+          member x.Return(y) = Return y
+          member inline x.Combine< ^B >(p1 : ActiveParser<unit,'t>, p2 : ActiveParser< ^B,'t>) = p1 >>. p2
+          //member x.Combine(p1 ,p2) = p1 .>>. p2
+          member x.Delay f = f ()
+
+
+    let parse = new ParserBuilder()
+
+    let Either (p1: ActiveParser<'a,'t>) (p2: ActiveParser<'a,'t>) : ActiveParser<'a,'t> =
+          let p stream =
+              match p1 stream with
+              | None -> p2 stream
+              | res -> res
+          in p
+
+    // This is the Either combinator defined in the previous blog post.
+    let (<|>) = Either
+
+    let Char (c : char) : ActiveParser<char,char> =
+      fun stream ->
+          match stream.Head() with
+          | Some(chr) when chr = c -> Some(chr, stream.Consume(1))
+          | _ -> None
+    
+    let PChar (c : char) : ActiveParser<unit,char> =
+      fun stream ->
+          match stream.Head() with
+          | Some(chr) when chr = c -> Some((), stream.Consume(1))
+          | _ -> None
+
+    let PString (s : string) : ActiveParser<unit,char> =
+      fun stream -> 
+        match stream.Read(s.Length) with
+        | Some(str) when String(str) = s -> Some((),stream.Consume(s.Length))
+        | _ -> None    
+
+    let SplitWith (s : string) : ActiveParser<char [],char> =
+      fun stream ->
+        match stream.SubSearch ((=),s.ToCharArray()) with
+        | Some(position) -> 
+          match stream.Read position with
+          | Some(chars) -> Some(chars,stream.Consume(position + s.Length))
+          | _ -> failwith "splitwith is bork"
+        | _ -> None
+
+    let Between (s : string) =
+        parse {
+          let! chrs = PString s >>. SplitWith s
+          return chrs
+        }
+
+    let Head : ActiveParser<'t,'t> =
+        fun stream ->
+          stream.Head() |> Option.bind (fun x -> Some(x,stream.Consume(1)))
+
+
+    let NewLine =
+      parse {
+        let! c = Char '\u000D' <|>  Char '\u000C' <|>  Char '\u000A'
+        if c = '\u000D' then
+          do! PChar '\u000A'
+          return ()
+        return ()
+      }
+
+
+
+
 
 let looper fn init =
     let mutable loop = true
@@ -157,8 +265,11 @@ let (|PChar|_|) (char : char) (input : IStream<char>) =
     
 let (|PString|_|) (pattern : string) (input : IStream<char>) =
     match input.Read(pattern.Length) with
-    | Some(str) when string str = pattern -> 
-        Some(input.Consume(pattern.Length))
+    | Some(str) -> 
+        let s = String(str)
+        if s = pattern then
+          Some(input.Consume(pattern.Length))
+        else None
     | _ -> None    
     
 let (|Between|_|) (char : char) (input : IStream<char>) =
