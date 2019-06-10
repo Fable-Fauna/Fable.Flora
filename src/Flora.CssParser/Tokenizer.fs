@@ -57,6 +57,7 @@ let (|Space|_|) = NewLine <|> PChar '\t' <|> PChar ' '
 
 let (|SplitWith|_|) = ParserBuilder.SplitWith
 
+//TODO something is off
 let rec whitespace_fn stream =
   match stream with
   | Space(_,left) -> 
@@ -65,7 +66,7 @@ let rec whitespace_fn stream =
   | Comment(cmt,left) -> 
     let cmts, ls = whitespace_fn left
     cmt :: cmts, ls
-  | _ -> [],stream
+  | s -> [],s
 
 let whitespace stream =
   let q,rest = whitespace_fn stream

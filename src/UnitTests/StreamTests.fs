@@ -14,7 +14,7 @@ let stream str =
 
 [<Tests>]
 let tests =
-    ftestList "stream tests" [
+    testList "stream tests" [
 
 
         test "pchar" {
@@ -66,6 +66,25 @@ let tests =
           match str with
           | Whitespace(Token.Whitespace(cmt),left) -> 
             Expect.equal cmt ["! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css "] "correct comment"
+            Expect.isTrue (left.Head().IsNone) "empty stream"
+
+        }
+
+        test "whitespace 3" {
+          let str = (stream "/*!
+          * Bootstrap v4.2.1 (https://getbootstrap.com/)
+          * Copyright 2011-2018 The Bootstrap Authors
+          * Copyright 2011-2018 Twitter, Inc.
+          * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+          */ ")
+          match str with
+          | Whitespace(Token.Whitespace(cmt),left) -> 
+            //Expect.equal cmt ["!
+            //* Bootstrap v4.2.1 (https://getbootstrap.com/)
+            //* Copyright 2011-2018 The Bootstrap Authors
+            //* Copyright 2011-2018 Twitter, Inc.
+            //* Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
+            //"] "correct comment"
             Expect.isTrue (left.Head().IsNone) "empty stream"
 
         }

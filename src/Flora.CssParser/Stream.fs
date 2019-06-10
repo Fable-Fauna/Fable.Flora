@@ -180,7 +180,7 @@ module ParserBuilder =
           | Some(chars) -> 
             printf "position %i chars %s : position %i " position (String(chars)) (stream.Position())
             Some(chars,stream.Consume(position + s.Length - stream.Position()))
-          | _ -> failwith "splitwith is bork"
+          | None -> Some([||],stream.Consume(s.Length))
         | _ -> None
 
     let Between (s : string) =

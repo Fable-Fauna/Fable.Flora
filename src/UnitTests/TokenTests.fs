@@ -65,7 +65,7 @@ let AccepectenceTests =
             Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
         }
 
-        test "bootstrap" {
+        ftest "bootstrap" {
             let testText = File.ReadAllText("../../../../../test/bootstrap.css")
             let ptree = parseCss testText
             Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
@@ -122,6 +122,22 @@ let ParseTests =
 "
             let ptree = parseCss testText
             Expect.isTrue (ptree.Length = 2) (sprintf "token length: %i"  ptree.Length)
+        };
+
+
+        test "bootstrap" {
+          let testText = "abbr[title],
+          abbr[data-original-title] {
+            text-decoration: underline;
+            -webkit-text-decoration: underline dotted;
+            text-decoration: underline dotted;
+            cursor: help;
+            border-bottom: 0;
+            text-decoration-skip-ink: none;
+          }
+"
+          let ptree = parseCss testText
+          Expect.isTrue (ptree.Length = 1) (sprintf "token length: %i"  ptree.Length)
         };
 
        
