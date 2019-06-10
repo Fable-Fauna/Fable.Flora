@@ -65,7 +65,7 @@ let AccepectenceTests =
             Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
         }
 
-        ftest "bootstrap" {
+        test "bootstrap" {
             let testText = File.ReadAllText("../../../../../test/bootstrap.css")
             let ptree = parseCss testText
             Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)

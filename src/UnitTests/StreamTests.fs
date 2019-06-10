@@ -66,7 +66,8 @@ let tests =
           match str with
           | Whitespace(Token.Whitespace(cmt),left) -> 
             Expect.equal cmt ["! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css "] "correct comment"
-            Expect.isTrue (left.Head().IsNone) "empty stream"
+            let hd = left.Head()
+            Expect.isTrue (hd.IsNone) "empty stream"
 
         }
 
@@ -76,7 +77,7 @@ let tests =
           * Copyright 2011-2018 The Bootstrap Authors
           * Copyright 2011-2018 Twitter, Inc.
           * Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
-          */ ")
+          */ :root {")
           match str with
           | Whitespace(Token.Whitespace(cmt),left) -> 
             //Expect.equal cmt ["!
@@ -85,7 +86,7 @@ let tests =
             //* Copyright 2011-2018 Twitter, Inc.
             //* Licensed under MIT (https://github.com/twbs/bootstrap/blob/master/LICENSE)
             //"] "correct comment"
-            Expect.isTrue (left.Head().IsNone) "empty stream"
+            Expect.isTrue (left.Head().Value = ':') "empty stream"
 
         }
 

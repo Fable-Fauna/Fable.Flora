@@ -89,7 +89,7 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
 
         member this.Head(): 'a option = 
           if state.Cache.Length >= 1 && state.Pos <> state.TotalLength then Some(state.Cache.[0])
-          else (this :> IStream<'a>).Read 0 |> Option.map Array.head
+          else (this :> IStream<'a>).Read 1 |> Option.map Array.head
 
 
 
