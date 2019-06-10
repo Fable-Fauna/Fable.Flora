@@ -50,7 +50,7 @@ type Token =
 let (|Comment|_|)  =
   parse {
     let! chrs = PString "/*" >>. SplitWith "*/"
-    return chrs
+    return String(chrs)
   }
 
 let (|Space|_|) = NewLine <|> PChar '\t' <|> PChar ' '
@@ -64,7 +64,7 @@ let rec whitespace_fn stream =
     cmts, ls
   | Comment(cmt,left) -> 
     let cmts, ls = whitespace_fn left
-    String(cmt) :: cmts, ls
+    cmt :: cmts, ls
   | _ -> [],stream
 
 let whitespace stream =
@@ -127,9 +127,9 @@ let hexToUni (input : string) =
 
 let (|Escape|_|) (input : IStream<char>) =
     match input with
-    | PString "\\" blok ->
+    | PString "\\" (_,blok) ->
         match blok with
-        | NewLine(_) -> failwith "cannot escape newline"
+        | NewLine(_,_) -> failwith "cannot escape newline"
         | HexDigit(h,left) -> 
             ((string h, 1),left)
             |> Stream.looper (fun ((hex,cnt),stream) ->
@@ -164,7 +164,7 @@ let (|Ident|_|) (input : IStream<char>) =
     ("",input)
     |> Stream.looper (fun (result,n1) -> 
       match n1 with
-      | PChar '-' n2 -> 
+      | PChar '-' (_,n2) -> 
         if fst then
           fst <- false
           match n2 with
@@ -181,23 +181,23 @@ let (|Function|_|) (input : IStream<char>) =
     match input with
     | Ident(id,rest) ->
         match rest with
-        | PChar '(' str -> Some(id,str)
+        | PChar '(' (_,str) -> Some(id,str)
         | _ -> None 
     | _ -> None
 
 
 let (|AtKeyword|_|)  (input : IStream<char>) =
     match input with
-    | PChar '@' (Ident(id,rest)) -> Some(id,rest)
+    | PChar '@' (_,(Ident(id,rest))) -> Some(id,rest)
     | _ -> None
 
 let (|HashToken|_|) (input : IStream<char>) =
     match input with
-    | PChar '#' n1 -> 
+    | PChar '#' (_,n1) -> 
       ("",n1)
       |> Stream.looper (fun (result,n2) -> 
         match n2 with
-        | PChar '-' n3 ->  Some(result + "-", n3),true
+        | PChar '-' (_,n3) ->  Some(result + "-", n3),true
         | IdentCodon(codon,n2) -> Some(result + string codon,n2),true
         | Escape(b,n2) -> Some(result + string b, n2),true
         | _ -> if result = "" then None,false else Some(result,n1),false)
@@ -206,14 +206,14 @@ let (|HashToken|_|) (input : IStream<char>) =
 
 let (|StringToken|_|) (input : IStream<char>) = 
     match input with
-    | Between '"' (str, next)
-    | Between ''' (str, next) ->
+    | Between "\"" (str, next)
+    | Between "'" (str, next) ->
         let mem = ref (str)
         let stream = Stream(mem,20)
         ("",stream :> IStream<char>)
         |> Stream.looper (fun (result,n1) -> 
           match n1 with
-          | PChar '\\' (NewLine(n2)) ->  Some(result + "\u000A", n2),true
+          | PChar '\\' (_,(NewLine(_,n2))) ->  Some(result + "\u000A", n2),true
           | Char(codon,n2) -> Some(result + string codon,n2),true
           | Escape(b,n2) -> Some(result + string b, n2),true
           | _ -> Some(result,n1),false)
@@ -246,7 +246,7 @@ let (|UrlUnQuote|_|) (input : IStream<char>) =
 
 let (|UrlToken|_|) (input : IStream<char>) =
     match input with
-    | PString "url" (PChar '(' (SplitWith ")" (inner,rest))) ->
+    | PString "url" (_,(PChar '(' (_,(SplitWith ")" (inner,rest))))) ->
         let istream = Stream(ref inner,20) :> IStream<char>
         match istream with
         | Whitespace(_,left) ->
@@ -273,23 +273,23 @@ let (|Digits|_|) (input : IStream<char>) =
 let (|NumberToken|_|) (input : IStream<char>) =
     let neg,left1 = 
         match input with 
-        | PChar '+' left -> false,left
-        | PChar '-' left -> true,left
-        | str ->  false,str
+        | PChar '+' (_,left) -> false,left
+        | PChar '-' (_,left) -> true,left
+        | str ->  false,(str)
     let number, decimal, left2 = 
         match left1 with
-        | Digits (num,(PChar '.' (Digits (d,left)))) -> num, d, left
+        | Digits (num,(PChar '.' (_,(Digits (d,left))))) -> num, d, left
         | Digits (num,left) -> num, "", left
-        | PChar '.' (Digits (d,left)) -> "", d, left
+        | PChar '.' (_,(Digits (d,left))) -> "", d, left
         | _ -> "", "", left1 
     
     let eneg, exponent, left3 =
         match left2 with
-        | PChar 'e' left
-        | PChar 'E' left ->
+        | PChar 'e' (_,left)
+        | PChar 'E' (_,left) ->
             match left with 
-            | PChar '+' (Digits (num,left)) -> false, num, left
-            | PChar '-' (Digits (num,left))-> true,num,left
+            | PChar '+' (_,(Digits (num,left))) -> false, num, left
+            | PChar '-' (_,(Digits (num,left))) -> true,num,left
             | Digits (num,left) ->  false,num,left 
             | _ -> false, "", left2 //case of "em" terminal
         | _ -> false, "", left2 
@@ -306,31 +306,31 @@ let tokenise (input : IStream<char>) =
     | Whitespace(t,left) -> t,left
     | StringToken(t,left) -> Token.String(t),left
     | HashToken(t,left) -> Token.Hash(t),left //incorrect
-    | PString "$=" left -> Token.SuffixMatch,left
+    | PString "$=" (_,left) -> Token.SuffixMatch,left
     //apostrohpy string 
-    | PChar '(' left -> Token.ParenStart, left
-    | PChar ')' left -> Token.ParenEnd, left
-    | PString "*=" left -> Token.SubstringMatch, left
+    | PChar '(' (_,left) -> Token.ParenStart, left
+    | PChar ')' (_,left) -> Token.ParenEnd, left
+    | PString "*=" (_,left) -> Token.SubstringMatch, left
     | NumberToken (num, left) -> Token.Number(num), left
-    | PChar ',' left -> Token.Comma, left
-    | PString "-->" left -> Token.CDC, left
+    | PChar ',' (_,left) -> Token.Comma, left
+    | PString "-->" (_,left) -> Token.CDC, left
     //ident like
     | Function (word,left) -> Token.Function word, left
     | UrlToken (word,left) -> Token.Url word, left
     | Ident (word,left) -> Token.Ident word, left
-    | PChar ':' left -> Token.Colon, left
-    | PChar ';' left -> Token.SemiColon, left
-    | PString "<!--" left -> Token.CDO, left
+    | PChar ':' (_,left) -> Token.Colon, left
+    | PChar ';' (_,left) -> Token.SemiColon, left
+    | PString "<!--" (_,left) -> Token.CDO, left
     | AtKeyword (word,left) -> Token.At word, left
-    | PChar '[' left -> Token.SquareStart, left
+    | PChar '[' (_,left) -> Token.SquareStart, left
     //ident like
-    | PChar ']' left -> Token.SquareEnd, left
-    | PString "^=" left -> Token.PrefixMatch, left
-    | PChar '{' left -> Token.SwiggleStart, left
-    | PChar '}' left -> Token.SwiggleEnd, left
-    | PString "|=" left -> Token.DashMatch, left
-    | PString "||" left -> Token.Column, left
-    | PString "~=" left -> Token.IncludeMatch, left
+    | PChar ']' (_,left) -> Token.SquareEnd, left
+    | PString "^=" (_,left) -> Token.PrefixMatch, left
+    | PChar '{' (_,left)-> Token.SwiggleStart, left
+    | PChar '}' (_,left) -> Token.SwiggleEnd, left
+    | PString "|=" (_,left) -> Token.DashMatch, left
+    | PString "||" (_,left) -> Token.Column, left
+    | PString "~=" (_,left) -> Token.IncludeMatch, left
     //unicode range
     //eof
     | Char (chr,left) -> Token.Delim chr, left

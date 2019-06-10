@@ -5,7 +5,7 @@ open Xunit
 open CssProvider
 //open Parser
 open System.IO
-open Tests
+
 
 //[<Fact>]
 //let ``parse sample 2`` () =

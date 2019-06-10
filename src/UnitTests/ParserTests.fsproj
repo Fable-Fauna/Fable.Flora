@@ -1,19 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
-    <IsPackable>false</IsPackable>
+    <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Tests.fs" />
+    <ProjectReference Include="..\Flora.CssParser\Flora.CssParser.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="StreamTests.fs" />
     <Compile Include="TokenTests.fs" />
     <Compile Include="TailwindTests.fs" />
     <Compile Include="BulmaTests.fs" />
     <Compile Include="BootstrapTests.fs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Flora.CssParser\Flora.CssParser.fsproj" />
+    <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
