@@ -1,19 +1,45 @@
 ﻿module CssProcesser
 
-open CssProvider.Parser
+open CssProvider.SelectorsParser
 open System.IO
-open FParsec
 
-let procCss (css : Definition list) = 
+let procCss (css : Rule list) = 
     let q = seq {
         for x in css do
-            for y in x.SelectorGroups do
-                for (typ,ls) in y do
-                    for l in ls do
-                        match l with
-                        | SimpleSelector.Class(cls) -> 
-                            yield typ.Element, (cls.Split('-') |> Array.toList, cls)
-                        | _ -> ()
+          match x with
+          | Rule.Qualified(sgl,blk) ->
+            for y in sgl do
+              match y with
+              | SelectorGroup.Single(sseq) ->
+                for s in sseq.Selectors do
+                  match s with
+                  | SimpleSelector.Class(cls) -> 
+                      yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                  | _ -> ()
+              | SelectorGroup.Multiple(group) ->
+                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                  for s in sseq.Selectors do
+                    match s with
+                    | SimpleSelector.Class(cls) -> 
+                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                    | _ -> ()
+
+          | Rule.At(name,sgl,blk) -> //need at rules name
+            for y in sgl do
+              match y with
+              | SelectorGroup.Single(sseq) ->
+                for s in sseq.Selectors do
+                  match s with
+                  | SimpleSelector.Class(cls) -> 
+                      yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                  | _ -> ()
+              | SelectorGroup.Multiple(group) ->
+                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                  for s in sseq.Selectors do
+                    match s with
+                    | SimpleSelector.Class(cls) -> 
+                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                    | _ -> ()
     }
     let n = 
         q   |> Seq.groupBy (fst >> (function | ElementSelector.Name(e) -> e | _ -> "Any"))
@@ -47,13 +73,11 @@ let rec produceGraph (classes :(string list * string) []) : Graph [] =
 
 let makeGraphFromCss filename =
     let testText = File.ReadAllText(filename,System.Text.Encoding.UTF8)
-    let result = run parseCss testText
-    match result with
-    | Success(defs,_,_) ->
-        let a = procCss defs
-        a |> Array.map (fun (x,y) -> 
-            { Leaf = None
-              Name = x
-              Children = produceGraph y
-            })
-    | Failure(err,perr,_) -> failwith err
+    let defs = parseCss testText
+    let a = procCss defs
+    a |> Array.map (fun (x,y) -> 
+        { Leaf = None
+          Name = x
+          Children = produceGraph y
+        })
+

@@ -12,7 +12,6 @@ nuget Fable.Elmish.React
 nuget Fable.Elmish.Browser
 nuget Fable.Elmish.Debugger
 nuget Fable.PowerPack
-nuget FParsec
 nuget Microsoft.NET.Test.Sdk
 nuget Expecto
 nuget YoloDev.Expecto.TestSdk

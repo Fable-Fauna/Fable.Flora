@@ -1,214 +1,136 @@
 namespace CssProvider
 open System
-open FParsec
 
 
-
-
-module Tokens =
-
-    let comment :Parser<unit,unit> =
-        skipString "/*" >>. skipCharsTillStringCI "*/" true Int32.MaxValue
-
-    let newLine :Parser<unit,unit> =
-        newline >>% ()
-        <|>
-        skipChar '\f'
 
         
 
-module Parser =
+//module Parser =
 
-    type NamespaceSelector =
-        | All
-        | Empty
-        | Name of string
+//    type NamespaceSelector =
+//           | All
+//           | Empty
+//           | Name of string
 
-    type ElementSelector =
-        | All
-        | Name of string
+//       type ElementSelector =
+//           | All
+//           | Name of string
 
-    type Combinator =
-        | Desendent //*
-        | Child // >
-        | Next // +
+//       type Combinator =
+//           | Desendent //*
+//           | Child // >
+//           | Next // +
 
-    and Match =
-        | Includes // ~=
-        | Dash // |=
-        | Prefix // ^=
-        | Suffix // $=
-        | Substring // *=
-        | Equal // =
-
-    and SelectorGroup =
-        SelectorSeq list
-
-    and TypeSelector =
-        { Element : ElementSelector
-          Namespace : NamespaceSelector}
-
-
-    and SimpleSelector =
-        | Class of string
-        | Id of string
-        | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
-        | PsudoClass of string //ident
-        | PsudoElement of string //ident 
-        | Negation of SimpleSelector
-        | TypeSelector of TypeSelector
-
-    and SelectorSeq =
-        TypeSelector * SimpleSelector list    
-
-    and Rule =
-        string * string
-
-    and Definition =
-        { SelectorGroups : SelectorGroup list
-          Rules : Rule list}
-
-    and CssRoot =
-        | Definition of Definition
-        | Media
-
-    //OTHER
-
-    let parseComment =
-        pstring "/*" >>. charsTillString "*/" true Int32.MaxValue |>> ignore
-
-    let whitespace =
-        spaces .>> opt (skipMany (parseComment .>> spaces))
+//       and Match =
+//           | Includes // ~=
+//           | Dash // |=
+//           | Prefix // ^=
+//           | Suffix // $=
+//           | Substring // *=
+//           | Equal // =
 
 
 
-    //SELECTORS
-    let identifier = 
-        ((satisfy isLetter <|> pchar '-' <|> satisfy isDigit) |> many1Chars 
-        <|> (pstring "\:" >>% ":") <|> (pstring "\/" >>% "/")) |> many1Strings
-
-    let istring = 
-        (pchar '"' >>. identifier .>> pchar '"')
-        <|>
-        (pchar ''' >>. identifier .>> pchar ''')
-
-    let parseClass = pchar '.' >>. identifier |>> Class
-
-    let parseId = pchar '#' >>. identifier |>> Id
+//       and TypeSelector =
+//           { Element : ElementSelector
+//             Namespace : NamespaceSelector}
 
 
-    let parseNamespaceSelector =
-        attempt (
-            (identifier |>> NamespaceSelector.Name 
-            <|> (pchar '*' >>% NamespaceSelector.All)
-            <|> preturn NamespaceSelector.Empty)
-            .>> pchar '|') 
-        <|> preturn NamespaceSelector.All
+//       and SimpleSelector =
+//           | Class of string
+//           | Id of string
+//           | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
+//           | PsudoClass of string //ident
+//           | PsudoElement of string //ident 
+//           | Negation of SimpleSelector
+//           | TypeSelector of TypeSelector
 
-    let parseElementSelector = 
-        identifier |>> ElementSelector.Name
-        <|> (pchar '*' >>% ElementSelector.All)
-        <|> preturn ElementSelector.All
+//       and SelectorSeq =
+//           TypeSelector * SimpleSelector list   
 
-    let parseTypeSelector = 
-        parseNamespaceSelector .>>. parseElementSelector 
-        |>> (fun (x,y) -> { Element = y; Namespace = x})
+//    let parseClass = pchar '.' >>. identifier |>> Class
+
+//    let parseId = pchar '#' >>. identifier |>> Id
+
+
+//    let parseNamespaceSelector =
+//        attempt (
+//            (identifier |>> NamespaceSelector.Name 
+//            <|> (pchar '*' >>% NamespaceSelector.All)
+//            <|> preturn NamespaceSelector.Empty)
+//            .>> pchar '|') 
+//        <|> preturn NamespaceSelector.All
+
+//    let parseElementSelector = 
+//        identifier |>> ElementSelector.Name
+//        <|> (pchar '*' >>% ElementSelector.All)
+//        <|> preturn ElementSelector.All
+
+//    let parseTypeSelector = 
+//        parseNamespaceSelector .>>. parseElementSelector 
+//        |>> (fun (x,y) -> { Element = y; Namespace = x})
         
          
-    let parseMatch =
-        (pstring "~=" >>% Match.Includes)
-        <|> (pstring "|=" >>% Match.Dash)
-        <|> (pstring "^=" >>% Match.Prefix)
-        <|> (pstring "$=" >>% Match.Suffix)
-        <|> (pstring "*=" >>% Match.Substring)
-        <|> (pchar '=' >>% Match.Equal)
+//    let parseMatch =
+//        (pstring "~=" >>% Match.Includes)
+//        <|> (pstring "|=" >>% Match.Dash)
+//        <|> (pstring "^=" >>% Match.Prefix)
+//        <|> (pstring "$=" >>% Match.Suffix)
+//        <|> (pstring "*=" >>% Match.Substring)
+//        <|> (pchar '=' >>% Match.Equal)
 
    
-    let parseAttribute =
-        pchar '[' >>. whitespace >>. parseNamespaceSelector .>>. identifier .>> whitespace
-        .>>. opt (parseMatch .>> whitespace  .>>. (identifier <|> istring) ) .>> whitespace .>> pchar ']'
-        |>> SimpleSelector.Attribute
+//    let parseAttribute =
+//        pchar '[' >>. whitespace >>. parseNamespaceSelector .>>. identifier .>> whitespace
+//        .>>. opt (parseMatch .>> whitespace  .>>. (identifier <|> istring) ) .>> whitespace .>> pchar ']'
+//        |>> SimpleSelector.Attribute
 
-    let parsePseudoElement =
-        pchar ':' >>. (optional (pchar ':')) >>. identifier |>> SimpleSelector.PsudoElement
-
-
-    let parseNegation =
-        pchar ':' 
-        .>> pstringCI "NOT"
-        .>> pchar '('
-        .>> whitespace
-        >>. (
-            attempt parseTypeSelector |>> SimpleSelector.TypeSelector
-            <|> attempt parseClass
-            <|> attempt parseId
-            <|> attempt parseAttribute
-            <|> attempt parsePseudoElement )
-        .>> whitespace
-        .>> pchar ')'
-        |>> SimpleSelector.Negation
+//    let parsePseudoElement =
+//        pchar ':' >>. (optional (pchar ':')) >>. identifier |>> SimpleSelector.PsudoElement
 
 
-    let parseSimpleSelector = 
-        attempt parseClass 
-        <|> attempt parseId
-        <|> attempt parseAttribute
-        <|> attempt parsePseudoElement
-        <|> attempt parseNegation
+//    let parseNegation =
+//        pchar ':' 
+//        .>> pstringCI "NOT"
+//        .>> pchar '('
+//        .>> whitespace
+//        >>. (
+//            attempt parseTypeSelector |>> SimpleSelector.TypeSelector
+//            <|> attempt parseClass
+//            <|> attempt parseId
+//            <|> attempt parseAttribute
+//            <|> attempt parsePseudoElement )
+//        .>> whitespace
+//        .>> pchar ')'
+//        |>> SimpleSelector.Negation
+
+
+//    let parseSimpleSelector = 
+//        attempt parseClass 
+//        <|> attempt parseId
+//        <|> attempt parseAttribute
+//        <|> attempt parsePseudoElement
+//        <|> attempt parseNegation
 
         
 
-    let parseSelectorSeq = 
-        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
+//    let parseSelectorSeq = 
+//        parseTypeSelector .>>. many parseSimpleSelector |>> SelectorSeq
 
 
-    let parseCombinator =
-        (pchar '>' >>% Child)
-        <|> (pchar '*' >>% Desendent)
-        <|> (pchar '+' >>% Next)
+//    let parseCombinator =
+//        (pchar '>' >>% Child)
+//        <|> (pchar '*' >>% Desendent)
+//        <|> (pchar '+' >>% Next)
         
 
-    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
-        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
+//    let parseSelector :Parser<SelectorGroup,unit> =     //combinator selectorSeq
+//        sepBy1 (whitespace >>. parseSelectorSeq .>> whitespace) parseCombinator
 
-    let parseSelectorGroup  = 
-        sepBy1 parseSelector (pchar ',' .>> whitespace) 
+//    let parseSelectorGroup  = 
+//        sepBy1 parseSelector (pchar ',' .>> whitespace) 
     
-    let parseDefinition :Parser<Definition,unit> =
-        (parseSelectorGroup .>> whitespace) 
-        .>> (pchar '{' >>. skipCharsTillStringCI "}" true Int32.MaxValue) 
-        |>> (fun x -> { SelectorGroups = x; Rules = []})
 
-    //@Media
-
-    let parseCss2 = attempt (many1 (attempt (whitespace >>. parseDefinition)))
-
-    let parseMediaQuery =
-        (pchar '(' >>. (identifier .>> pchar ':' >>. skipCharsTillStringCI ")" true 200))
-
-    let parseMediaQueryList  =
-        sepBy1 parseMediaQuery (pchar ',' .>> whitespace) 
-
-    let parseMediaSection =
-        whitespace >>. pstringCI "@media" >>. whitespace >>. parseMediaQueryList >>. whitespace >>.
-        between (pchar '{') (whitespace >>. pchar '}') parseCss2 |>> ignore
-
-    
-    //let parseMediaFeature = //plain, boolean, range
-        
-         
-    //RULES
-
-    //let parseRule :Parser<Rule,unit> =
-    //    (whitespace >>. identifier .>> pchar ':') 
-    //    .>>. (whitespace >>. skipCharsTillStringCI ';')
-    
- 
-
-        
-    let parseCss = 
-        many1 (whitespace >>. choice [(parseDefinition |>> CssRoot.Definition); (parseMediaSection >>% CssRoot.Media)] .>> whitespace)
-        |>> (fun ls -> ls |> List.choose (function | CssRoot.Definition(x) -> Some(x) | _ -> None))
 
 
 module ParseShaper =
@@ -283,11 +205,13 @@ module ParseShaper =
 module SelectorsParser =
     open Tokenizer
     open ParseShaper
+    open Stream
 
     type NamespaceSelector =
-        | All
-        | Empty
-        | Name of string
+        | AllNamespaces
+        | DefultNamespace
+        | NoNamespace
+        | Namespace of string
 
     type ElementSelector =
         | All
@@ -306,8 +230,13 @@ module SelectorsParser =
         | Substring // *=
         | Equal // =
 
-    and SelectorGroup =
-        SelectorSeq list
+    and PsudoIdent =
+        | Function of string
+        | Ident of string
+
+    and Psudo = 
+        | Class of PsudoIdent
+        | Element of PsudoIdent
 
     and TypeSelector =
         { Element : ElementSelector
@@ -318,17 +247,195 @@ module SelectorsParser =
         | Class of string
         | Id of string
         | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
-        | PsudoClass of string //ident
-        | PsudoElement of string //ident 
+        | Psudo of Psudo 
         | Negation of SimpleSelector
+
+
+    and NegationArg =
+        | Class of string
+        | Id of string
+        | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
+        | Psudo of Psudo 
         | TypeSelector of TypeSelector
 
     and SelectorSeq =
-        TypeSelector * SimpleSelector list   
+        { Type : TypeSelector 
+          Selectors : SimpleSelector list }
+
 
     type Stylesheet =
         Rule list
     
+    and SelectorGroup =
+        | Single of SelectorSeq
+        | Multiple of {| Head : SelectorSeq; Ls : (Combinator * SelectorSeq) [] |}
+
+
+
     and Rule =
         | Qualified of SelectorGroup list * BlockShape
         | At of string * SelectorGroup list * BlockShape
+
+    //PARSERS 
+
+    let MaybeWhitespace : IStream<ComponentShape> -> IStream<ComponentShape>  = function
+        | Head (ComponentShape.Preserved(Token.Whitespace(strs)), left) -> left
+        | input -> input
+
+    let (|Identifier|_|) = function
+        | Head (ComponentShape.Preserved(Token.Ident(str)),left) -> Some(str,left)
+        | _ -> None
+
+
+
+    let (|ElementSelctor|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('*'))) left -> Some(ElementSelector.All,left)
+        | Identifier(str, left) -> Some(ElementSelector.Name(str),left)
+        | left -> Some(ElementSelector.All,left)
+
+    let (|NamespaceSelector|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('*'))) (Fst (ComponentShape.Preserved(Token.Delim('|'))) left) -> Some(NamespaceSelector.AllNamespaces,left)
+        | Fst (ComponentShape.Preserved(Token.Delim('|'))) left -> Some(NamespaceSelector.NoNamespace,left)
+        | Identifier(str, Fst (ComponentShape.Preserved(Token.Delim('|'))) left ) -> Some(NamespaceSelector.Namespace(str),left)
+        | left -> Some(NamespaceSelector.DefultNamespace,left)
+
+    let (|TypeSelector|_|) = function
+        | NamespaceSelector(ns,ElementSelctor(es,left)) -> Some({Namespace = ns; Element = es},left)
+        | _ -> None
+
+    let (|Class|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Delim('.'))) (Identifier(str,left)) -> Some(str,left)
+        | _ -> None
+
+    let (|Match|_|) = function
+        | Fst (ComponentShape.Preserved(Token.DashMatch)) rest -> Some(Match.Dash,rest)
+        | Fst (ComponentShape.Preserved(Token.IncludeMatch)) rest -> Some(Match.Includes,rest)
+        | Fst (ComponentShape.Preserved(Token.PrefixMatch)) rest -> Some(Match.Prefix,rest)
+        | Fst (ComponentShape.Preserved(Token.SuffixMatch)) rest -> Some(Match.Suffix,rest)
+        | Fst (ComponentShape.Preserved(Token.SubstringMatch)) rest -> Some(Match.Substring,rest)
+        | Fst (ComponentShape.Preserved(Token.Delim('='))) rest -> Some(Match.Equal,rest)
+        | _ -> None
+
+   
+    let (|Attribute|_|) = function
+        | Head (ComponentShape.SquareBlock(bs),rest) -> 
+          let mem = ref (bs |> List.toArray)
+          let stream = Stream(mem,20)
+          match (MaybeWhitespace stream) with
+          | NamespaceSelector(ns,Identifier(name,left)) -> 
+            match left with
+            | Match(m,next) -> 
+                match (MaybeWhitespace next) with
+                | Identifier(str,_) -> Some(((ns,name),Some(m,str)),rest)
+                | Head (ComponentShape.Preserved(Token.String(str)),_) -> Some(((ns,name),Some(m,str)),rest)
+                | _ -> failwith "attribute failure"
+            | _ -> Some(((ns,name),None),rest)
+        | _ -> None
+
+    let (|PesudoElement|_|) = function 
+        | Fst (ComponentShape.Preserved(Token.Colon)) (Fst (ComponentShape.Preserved(Token.Colon)) next) -> 
+          match next with 
+          | Identifier(str,rest) -> Some(Psudo.Element(PsudoIdent.Ident(str)),rest)
+          | Head (ComponentShape.Function(name,block),rest) -> Some(Psudo.Element(PsudoIdent.Function(name)),rest)
+          | _ -> failwith "pesudo element fail 1"
+        | Fst (ComponentShape.Preserved(Token.Colon)) next -> 
+          match next with 
+          | Identifier(str,rest) -> Some(Psudo.Element(PsudoIdent.Ident(str)),rest)
+          | Head (ComponentShape.Function(name,block),rest) -> Some(Psudo.Element(PsudoIdent.Function(name)),rest)
+          | _ -> failwith "pesudo element fail 1"
+        | _ -> None
+
+    let (|CIPString|_|) (str : string) (input : IStream<ComponentShape>) = 
+        let q,rest = 
+          (str,input)
+          |> Stream.looper (fun (stack,x) -> 
+            match x with
+            | Head (ComponentShape.Preserved(Token.Delim(chr)),rest) ->
+              if stack.StartsWith(string chr, StringComparison.OrdinalIgnoreCase) then Some(stack.Remove(0,1),rest),true else None,false )
+        if q = "" then Some(rest)
+        else None
+ 
+    let (|Not|_|) = function
+        | Fst (ComponentShape.Preserved(Token.Colon)) (CIPString "NOT" (Head (ComponentShape.ParenBlock(blk),next))) ->
+          let mem = ref (blk |> List.toArray)
+          let stream = Stream(mem,20)
+          match (MaybeWhitespace stream) with
+          | Class(cls,rest) -> Some(SimpleSelector.Class(cls),next)
+          | Identifier(str,rest) -> Some(SimpleSelector.Id(str),next)
+          | Attribute(attr,rest) -> Some(SimpleSelector.Attribute(attr),next)
+          | PesudoElement(psu,rest) -> Some(SimpleSelector.Psudo(psu),next)
+          | _ -> failwith "not failure"
+        | _ -> None
+
+    let (|SimpleSelector|_|) input = 
+        match (MaybeWhitespace input) with
+        | Class(cls,rest) -> Some(SimpleSelector.Class(cls),rest)
+        | Identifier(str,rest) -> Some(SimpleSelector.Id(str),rest)
+        | Attribute(attr,rest) -> Some(SimpleSelector.Attribute(attr),rest)
+        | PesudoElement(psu,rest) -> Some(SimpleSelector.Psudo(psu),rest)
+        | Not(selector,rest) -> Some(SimpleSelector.Negation(selector),rest)
+        | _ -> None
+
+    let (|SelectorSequence|_|) (input : IStream<ComponentShape>)  =
+        match input with
+        | TypeSelector(typ,left) ->
+          let q,rest = 
+            ([],left)
+            |> Stream.looper (fun (results,x) -> 
+              match x with
+              | SimpleSelector(s,left) -> Some(s::results,left),true
+              | left -> Some(results,left),false)
+          Some({Type = typ; Selectors = q},rest)
+        | _ -> None
+
+    let (|Combinator|_|) = function
+      | Head(ComponentShape.Preserved(l),tail) ->
+        match l with
+        | Token.Delim('>') -> Some(Child,tail)
+        | Token.Delim('*') -> Some(Desendent,tail)
+        | Token.Delim('+') -> Some(Next,tail)
+        | _ -> None
+      | _ -> None
+
+    
+    let selectorGroup (input : IStream<ComponentShape>) =
+        match (MaybeWhitespace input) with
+        | SelectorSequence(head,left) ->
+          (SelectorGroup.Single(head),MaybeWhitespace left)
+          |> Stream.looper (fun (results,x) ->
+              match (MaybeWhitespace x) with
+              | Combinator(c,SelectorSequence(s,left)) -> 
+                let result = 
+                  match results with
+                  | SelectorGroup.Single(first) -> SelectorGroup.Multiple({|Head = first; Ls = [|c,s|]|})
+                  | SelectorGroup.Multiple(many) -> SelectorGroup.Multiple({|Head = many.Head; Ls = Array.append many.Ls [|c,s|]|})
+                Some(result,(MaybeWhitespace left)),true
+              | left -> Some(results,left),false
+            )
+          |> Some
+        | _ -> None
+
+    let nextSelectorGroup = function
+      | Fst (ComponentShape.Preserved(Token.Comma)) left -> Some(false,MaybeWhitespace left)
+      | _ -> None
+
+    let parseSelectorGroup (input : ComponentShape list) : SelectorGroup list = 
+      let mem = ref (input |> List.toArray)
+      let stream = Stream(mem,20)
+      sepBy1 selectorGroup nextSelectorGroup stream |> Option.get |> fst
+
+
+    let parseRule (r : RuleShape) : Rule =
+        match r with
+        | RuleShape.Qualified(ls,bs) -> Rule.Qualified(parseSelectorGroup ls, bs)
+        | RuleShape.At(s,ls,bs) -> Rule.At(s, (parseSelectorGroup ls), bs)
+
+    let parseStylesheet (shape : StylesheetShape) : Stylesheet =
+        shape |> List.map parseRule 
+
+    let parseCss (text : string) =
+      let tref = ref (text.ToCharArray())
+      let stream = Stream(tref,20) :> IStream<char>
+      let tstream = tokenStream stream
+      let pshape = parseShape tstream
+      parseStylesheet pshape
