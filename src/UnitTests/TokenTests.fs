@@ -48,7 +48,7 @@ open Stream
 //        }
 //    ]
 
-
+open CssProcesser
 [<Tests>]
 let AccepectenceTests =
     testList "Acceptence Tests" [
@@ -71,6 +71,11 @@ let AccepectenceTests =
             Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
         }
 
+        test "boostrap 2" {
+          let graph = makeGraphFromCss "../../../../../test/bootstrap.css"
+          Expect.isTrue (graph.Length > 6) (sprintf "graph length: %i"  graph.Length)
+
+        }
 
     ]
 

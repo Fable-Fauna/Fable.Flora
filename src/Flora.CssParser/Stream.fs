@@ -30,7 +30,7 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
         member this.SubSearch(comp, arg: 'a []): int option = 
             let cfn = (fun x y  -> if comp x y then 0 else -1) 
             let mutable target = Array.zeroCreate arg.Length
-            let mutable src = state.Pos
+            let mutable src = (fun _ -> state.Pos) ()
             let mutable result = None
             while result.IsNone
              && src <= (state.TotalLength - arg.Length) do
@@ -41,7 +41,7 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
             result
 
         member this.Search(comp, arg : 'a): int option =
-          let mutable src = state.Pos
+          let mutable src = (fun _ -> state.Pos) ()
           let mutable result = None
           while result.IsNone
            && src < state.TotalLength do
@@ -81,8 +81,7 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
                   if temp + state.Pos > state.TotalLength then state.TotalLength - state.Pos else temp
 
                 let n_ary = Array.sub model.Value state.Pos readlen
-                state <- {| state with 
-                  Pos = state.Pos + len; 
+                state <- {| state with  
                   Cache = n_ary|}
                 Some (Array.sub n_ary 0 len)
             | a,b when a < b -> None //outofbounds
@@ -174,12 +173,12 @@ module ParserBuilder =
 
     let SplitWith (s : string) : ActiveParser<char [],char> =
       fun stream ->
+        let pos_init = stream.Position()
         match stream.SubSearch ((=),s.ToCharArray()) with
         | Some(position) -> 
           match stream.Read (position - stream.Position()) with
           | Some(chars) -> 
-            printf "position %i chars %s : position %i " position (String(chars)) (stream.Position())
-            Some(chars,stream.Consume(position + s.Length - stream.Position()))
+            Some(chars,stream.Consume(position + s.Length - pos_init))
           | None -> Some([||],stream.Consume(s.Length))
         | _ -> None
 

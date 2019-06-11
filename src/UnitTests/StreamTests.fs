@@ -59,7 +59,25 @@ let tests =
           Expect.equal ((snd result.Value).Head().Value) 's' "whitespace consumes correctly"
         }
 
-        
+        test "split with" {
+          let str = (stream "! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */")
+          let result = (|SplitWith|_|) "*/" str
+          match result with
+          | Some(cmt,left) ->
+            Expect.equal (String cmt) "! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css " "correct comment"
+            let q = left
+            let hd = left.Head()
+            Expect.isTrue (hd.IsNone) "empty stream"
+        }
+
+        test "comment" {
+          let str = (stream "/*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */")
+          match str with
+          | Comment(cmt,left) ->
+            Expect.equal cmt "! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css " "correct comment"
+            let hd = left.Head()
+            Expect.isTrue (hd.IsNone) "empty stream"
+        }
 
         test "whitespace 2" {
           let str = (stream "/*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */")

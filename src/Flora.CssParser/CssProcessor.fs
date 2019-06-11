@@ -16,8 +16,15 @@ let procCss (css : Rule list) =
                   | SimpleSelector.Class(cls) -> 
                       yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
                   | _ -> ()
+              | SelectorGroup.Multiple(group) ->
+                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                  for s in sseq.Selectors do
+                    match s with
+                    | SimpleSelector.Class(cls) -> 
+                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                    | _ -> ()
 
-          | Rule.At(name,sgl,blk) ->
+          | Rule.At(name,sgl,blk) -> //need at rules name
             for y in sgl do
               match y with
               | SelectorGroup.Single(sseq) ->
@@ -26,6 +33,13 @@ let procCss (css : Rule list) =
                   | SimpleSelector.Class(cls) -> 
                       yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
                   | _ -> ()
+              | SelectorGroup.Multiple(group) ->
+                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                  for s in sseq.Selectors do
+                    match s with
+                    | SimpleSelector.Class(cls) -> 
+                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                    | _ -> ()
     }
     let n = 
         q   |> Seq.groupBy (fst >> (function | ElementSelector.Name(e) -> e | _ -> "Any"))
