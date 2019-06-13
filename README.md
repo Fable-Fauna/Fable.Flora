@@ -5,17 +5,30 @@ A to spec css parser for .NET.
 A type provider for consumption in both .NET and Fable runtimes to provide class names. And themeing support via auto injecting css varibles.
 
 # Supported Css 
-* Tailwind (currently working)
-* Bootstrap 
+* Tailwind (tested)
+* Bootstrap (tested)
 * Pure 
-* Bulma
+* Bulma (tested)
 * Milligram
 * Semantic-UI
 * Foundation
 * Material UI
 * UIKit
 
-# Getting Started
+# How to Use
+
+``` fsharp
+type Bulma = Flora.Stylesheet<"../bulma.css">
+
+let view model dispatch =
+  div [ Class Bulma.Any.``hover:bg``.blue.light]
+      [ str "hellow world" ]
+
+```
+
+
+
+# Getting Started With Test App
 
 Run `fake build`
 

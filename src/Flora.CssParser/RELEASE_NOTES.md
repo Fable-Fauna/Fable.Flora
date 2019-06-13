@@ -1,3 +1,3 @@
-### 0.0.1
+### 0.6.0
 
-* Test Deploy
+* Frist release working with most css.

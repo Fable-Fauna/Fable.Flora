@@ -1,9 +1,9 @@
 // ts2fable 0.6.1
 namespace Flora.CssProvider
 open System
-open Fable.Core
-open Fable.Import.JS
-open Fable.Import.Browser
+// open Fable.Core
+// open Fable.Import.JS
+// open Fable.Import.Browser
 open Microsoft.FSharp.Core.CompilerServices
 open System.IO
 open ProviderImplementation.ProvidedTypes

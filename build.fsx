@@ -109,6 +109,11 @@ let needsPublishing (versionRegex: Regex) (releaseNotes: ReleaseNotes.ReleaseNot
                     printfn "Already version %s, no need to publish." releaseNotes.NugetVersion
                 not sameVersion
 
+//build assembly info
+
+//build nuspec
+
+
 let toPackageReleaseNotes (notes: string list) =
     String.Join("\n * ", notes)
     |> (fun txt -> txt.Replace("\"", "\\\""))
