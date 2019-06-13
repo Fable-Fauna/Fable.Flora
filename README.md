@@ -18,11 +18,13 @@ A type provider for consumption in both .NET and Fable runtimes to provide class
 # How to Use
 
 ``` fsharp
+open Flora.CssProvider
+
 type Bulma = Flora.Stylesheet<"../bulma.css">
 
 let view model dispatch =
-  div [ Class Bulma.Any.``hover:bg``.blue.light]
-      [ str "hellow world" ]
+  div [ Class Bulma.Any.radio]
+      [ str "hello world" ]
 
 ```
 
