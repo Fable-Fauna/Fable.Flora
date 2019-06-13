@@ -28,7 +28,8 @@ let view model dispatch =
 
 ```
 
-
+# Nuget 
+https://www.nuget.org/packages/Flora.CssParser/0.6.0
 
 # Getting Started With Test App
 
