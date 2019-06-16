@@ -7,13 +7,13 @@ module App
 
 open Elmish
 open Elmish.React
-open Fable.Helpers.React
-open Fable.Helpers.React.Props
-open Flora.CssProvider
+open Fable.React
+open Fable.React.Props
+
 
 
 // MODEL
-type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
 type Model = int
 
