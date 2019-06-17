@@ -11,9 +11,6 @@
   <ItemGroup>
     <Compile Include="StreamTests.fs" />
     <Compile Include="TokenTests.fs" />
-    <Compile Include="TailwindTests.fs" />
-    <Compile Include="BulmaTests.fs" />
-    <Compile Include="BootstrapTests.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

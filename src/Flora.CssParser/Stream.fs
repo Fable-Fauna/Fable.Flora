@@ -91,6 +91,43 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
           else (this :> IStream<'a>).Read 1 |> Option.map Array.head
 
 
+type CachelessStream<'a>( model : 'a [] ref, position : int) =
+    
+    interface IStream<'a> with
+        member this.Consume(length) = CachelessStream(model,position + length) :> IStream<'a>
+
+        member this.Head() =
+          if position <> model.Value.Length then Some(model.Value.[position]) else None
+
+        member this.Length() = model.Value.Length
+
+        member this.Position() = position
+
+        member this.Search(comp, arg) = 
+          let mutable src = position
+          let mutable result = None
+          while result.IsNone
+           && src < model.Value.Length do
+            if (comp (model.Value.[src]) arg) then result <- Some(src)
+            src <- src + 1
+          result
+
+        member this.SubSearch(comp, arg) = 
+          let cfn = (fun x y  -> if comp x y then 0 else -1) 
+          let mutable target = Array.zeroCreate arg.Length
+          let mutable src = position
+          let mutable result = None
+          while result.IsNone
+           && src <= (model.Value.Length - arg.Length) do
+            Array.blit model.Value src target 0 arg.Length
+            if Array.compareWith cfn target arg = 0 then
+              result <- Some(src)
+            src <- src + 1
+          result
+
+        member this.Read length = 
+          if length + position > model.Value.Length then None
+          else Some (Array.sub model.Value position length)
 
 
 type ActiveParser<'a,'t> = IStream<'t> -> ('a * IStream<'t>) option
@@ -137,6 +174,7 @@ module ParserBuilder =
           member x.Bind(p, f) = Bind p f
           member x.Return(y) = Return y
           member inline x.Combine< ^B >(p1 : ActiveParser<unit,'t>, p2 : ActiveParser< ^B,'t>) = p1 >>. p2
+          //member inline x.Combine< ^A >(p1 : ActiveParser< ^A,'t>, p2 : ActiveParser<unit,'t>) = p1 .>> p2
           //member x.Combine(p1 ,p2) = p1 .>>. p2
           member x.Delay f = f ()
 
@@ -150,7 +188,6 @@ module ParserBuilder =
               | res -> res
           in p
 
-    // This is the Either combinator defined in the previous blog post.
     let (<|>) = Either
 
     let Char (c : char) : ActiveParser<char,char> =
@@ -182,11 +219,7 @@ module ParserBuilder =
           | None -> Some([||],stream.Consume(s.Length))
         | _ -> None
 
-    let Between (s : string) =
-        parse {
-          let! chrs = PString s >>. SplitWith s
-          return chrs
-        }
+    let Between (s : string) = PString s >>. SplitWith s
 
     let Head : ActiveParser<'t,'t> =
         fun stream ->
@@ -238,16 +271,3 @@ let (|Char|_|) (input : IStream<char>) = input.Head() |> Option.map (fun x -> x,
 
     
 let (|NewLine|_|) = ParserBuilder.NewLine
-
-
-let sepBy1 (p : ActiveParser<'a,'t>) (q : ActiveParser<'b,'t>) : ActiveParser<'a list,'t> =
-  fun x ->
-    ([],x)
-    |> looper (fun (r,y) ->
-        match (p y) with
-        | Some(a,left) ->
-          match (q left) with
-          | Some(b,z) -> Some(a::r,z),true
-          | None -> Some(a::r,left),false
-        | None -> None, false)
-    |> Some

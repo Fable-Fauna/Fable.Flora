@@ -57,7 +57,6 @@ let (|Space|_|) = NewLine <|> PChar '\t' <|> PChar ' '
 
 let (|SplitWith|_|) = ParserBuilder.SplitWith
 
-//TODO something is off
 let rec whitespace_fn stream =
   match stream with
   | Space(_,left) -> 
@@ -81,11 +80,9 @@ let (|MustWhitespace|) (input : IStream<char>) =
     
 let hexDigits = [| '0'; '1'; '2'; '3'; '4'; '5'; '6'; '7'; '8'; '9'; 'a'; 'b'; 'c'; 'd'; 'e'; 'f'; 'A'; 'B'; 'C'; 'D'; 'E'; 'F' |]
 
-let (|HexDigit|_|) (input : IStream<char>) =
-    match input with
+let (|HexDigit|_|) = function
     | Head(t,rest) when Array.contains t hexDigits -> Some(t,rest)
     | _ -> None
-
 
 let hexToByte (input : char) =
     match input with
@@ -146,8 +143,7 @@ let (|Escape|_|) (input : IStream<char>) =
     | _ -> None
 
 
-let (|IdentCodon|_|) (input : IStream<char>) = 
-    match input with
+let (|IdentCodon|_|) = function
     | Head(c,left) ->
         match UTF8Encoding.UTF8.GetBytes([|c|]) with
         | [|u|] when u >= 65uy && u <= 90uy -> Some(c)
@@ -178,19 +174,20 @@ let (|Ident|_|) (input : IStream<char>) =
     |> (fun (result,next) -> if result = "" then None else Some(result,next))
 
 
-let (|Function|_|) (input : IStream<char>) =
-    match input with
-    | Ident(id,rest) ->
-        match rest with
-        | PChar '(' (_,str) -> Some(id,str)
-        | _ -> None 
-    | _ -> None
+let (|Function|_|) =
+    parse {
+      let! id = (|Ident|_|)
+      let! _ = PChar '('
+      return id
+    }
 
+let (|AtKeyword|_|) =
+    parse {
+      let! _ = PChar '@'
+      let! key = (|Ident|_|)
+      return key
+    }
 
-let (|AtKeyword|_|)  (input : IStream<char>) =
-    match input with
-    | PChar '@' (_,(Ident(id,rest))) -> Some(id,rest)
-    | _ -> None
 
 let (|HashToken|_|) (input : IStream<char>) =
     match input with
@@ -209,9 +206,8 @@ let (|StringToken|_|) (input : IStream<char>) =
     match input with
     | Between "\"" (str, next)
     | Between "'" (str, next) ->
-        let mem = ref (str)
-        let stream = Stream(mem,20)
-        ("",stream :> IStream<char>)
+        let stream = CachelessStream(ref str,0) :> IStream<char>
+        ("",stream)
         |> Stream.looper (fun (result,n1) -> 
           match n1 with
           | PChar '\\' (_,(NewLine(_,n2))) ->  Some(result + "\u000A", n2),true
@@ -248,7 +244,7 @@ let (|UrlUnQuote|_|) (input : IStream<char>) =
 let (|UrlToken|_|) (input : IStream<char>) =
     match input with
     | PString "url" (_,(PChar '(' (_,(SplitWith ")" (inner,rest))))) ->
-        let istream = Stream(ref inner,20) :> IStream<char>
+        let istream = CachelessStream(ref inner,0) :> IStream<char>
         match istream with
         | Whitespace(_,left) ->
             match left with
@@ -306,7 +302,7 @@ let tokenise (input : IStream<char>) =
     match input with
     | Whitespace(t,left) -> t,left
     | StringToken(t,left) -> Token.String(t),left
-    | HashToken(t,left) -> Token.Hash(t),left //incorrect
+    | HashToken(t,left) -> Token.Hash(t),left //incorrect?
     | PString "$=" (_,left) -> Token.SuffixMatch,left
     //apostrohpy string 
     | PChar '(' (_,left) -> Token.ParenStart, left
