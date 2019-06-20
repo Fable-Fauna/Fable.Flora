@@ -110,41 +110,76 @@ let needsPublishing (versionRegex: Regex) (releaseNotes: ReleaseNotes.ReleaseNot
                 not sameVersion
 
 //build assembly info
-
-//build nuspec
-
-
 let toPackageReleaseNotes (notes: string list) =
     String.Join("\n * ", notes)
     |> (fun txt -> txt.Replace("\"", "\\\""))
 
+//build nuspec
+let createNugetV2 (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
+    let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
+    let nuspec = projFile.Remove(projFile.Length-6,6) + "nuspec"
+    let projDir = Path.GetDirectoryName(projFile)
+    
+    (versionRegex, nuspec)
+    ||> Util.replaceLines (fun line _ ->
+                                versionRegex.Replace(line, "<version>"+releaseNotes.NugetVersion+"</version>") |> Some)
+
+    (Regex("<releaseNotes>(.*?)</releaseNotes>", RegexOptions.IgnoreCase), nuspec)
+    ||> Util.replaceLines (fun line _ ->
+                                versionRegex.Replace(line, "<releaseNotes>"+(toPackageReleaseNotes releaseNotes.Notes)+"</releaseNotes>") |> Some)                                                               
+
+    let result =
+        DotNet.exec
+            (DotNet.Options.withWorkingDirectory projDir)
+            "pack"
+            (sprintf " Flora.CssProvider.fsproj -c Release --no-build -p:NuspecFile=\"Flora.CssProvider.nuspec\"" )
+
+    if not result.OK then failwithf "dotnet pack failed with code %i" result.ExitCode
+
+
+
+
+let createNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
+    let projDir = Path.GetDirectoryName(projFile)
+    let result =
+        DotNet.exec
+            (DotNet.Options.withWorkingDirectory projDir)
+            "pack"
+            (sprintf "-c Release /p:PackageReleaseNotes=\"%s\"" (toPackageReleaseNotes releaseNotes.Notes))
+
+    if not result.OK then failwithf "dotnet pack failed with code %i" result.ExitCode
+
 let pushNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
     let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
+    let projDir = Path.GetDirectoryName(projFile)
 
     if needsPublishing versionRegex releaseNotes projFile then
-        let projDir = Path.GetDirectoryName(projFile)
-        let nugetKey =
-            match  Environment.environVarOrNone "NUGET_KEY" with
-            | Some nugetKey -> nugetKey
-            | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
         (versionRegex, projFile)
         ||> Util.replaceLines (fun line _ ->
                                     versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
 
-        let result =
-            DotNet.exec
-                (DotNet.Options.withWorkingDirectory projDir)
-                "pack"
-                (sprintf "-c Release /p:PackageReleaseNotes=\"%s\"" (toPackageReleaseNotes releaseNotes.Notes))
-
-        if not result.OK then failwithf "dotnet fable failed with code %i" result.ExitCode
-
+        let nugetKey =
+            match  Environment.environVarOrNone "NUGET_KEY" with
+            | Some nugetKey -> nugetKey
+            | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
         Directory.GetFiles(projDir </> "bin" </> "Release", "*.nupkg")
         |> Array.find (fun nupkg -> nupkg.Contains(releaseNotes.NugetVersion))
         |> (fun nupkg ->
             Paket.push (fun p -> { p with ApiKey = nugetKey
                                           WorkingDir = Path.getDirectory nupkg }))
 
+
+Target.create "CreateNugets" (fun _ ->
+    ["src/Flora.CssParser/Flora.CssParser.fsproj"]
+    |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
+    |> Seq.iter (fun (proj,notes) -> createNuget notes proj)
+)
+
+Target.create "CreateNugets2" (fun _ ->
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"]
+    |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
+    |> Seq.iter (fun (proj,notes) -> createNugetV2 notes proj)
+)
 
 Target.create "PublishNugets" (fun _ ->
     ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"]
@@ -159,6 +194,8 @@ Target.create "PublishNugets" (fun _ ->
 "Clean"
     ==> "Install"
     ==> "Build"
+    ==> "CreateNugets"
+    ==> "CreateNugets2"
     ==> "PublishNugets"
 
 "Build"

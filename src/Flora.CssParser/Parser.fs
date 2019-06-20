@@ -1,6 +1,11 @@
 namespace CssProvider
 open System
 
+module CssVaribles =
+    open Tokenizer
+    open Stream 
+
+    let extractCssVariables (input :IStream<Token>) = () //todo look for ident with -- prefix
 
 module ParseShaper =
     open Tokenizer
