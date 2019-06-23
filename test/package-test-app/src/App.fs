@@ -13,7 +13,7 @@ open Fable.React.Props
 
 
 // MODEL
-type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
+type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
 
 type Model = int
 
@@ -35,9 +35,9 @@ let update (msg:Msg) (model:Model) =
 let view (model:Model) dispatch =
 
   div [ ]
-      [ button [ OnClick (fun _ -> dispatch Increment); Class Tailwind.Any.``hover:bg``.blue.light  ] [ str "+" ]
+      [ button [ OnClick (fun _ -> dispatch Increment); Class Tailwind.Any.list.item  ] [ str "+" ]
         div [] [ str (string model) ]
-        button [ OnClick (fun _ -> dispatch Decrement) ; Class Tailwind.Any.``hover:bg``.blue.light ] [ str "-" ] ]
+        button [ OnClick (fun _ -> dispatch Decrement) ; Class Tailwind.Any.list.Value ] [ str "-" ] ]
 
 // App
 Program.mkSimple init update view

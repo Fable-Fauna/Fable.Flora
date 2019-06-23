@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>Flora.CssProvider</id>
-    <version>0.6.1</version>
+    <version>0.6.2</version>
     <authors>MushedDev</authors>
     <owners>MushedDev</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>

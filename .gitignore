@@ -257,3 +257,7 @@ packages/
 .idea/
 *.sln.iml
 *.orig
+test/package-test-app/public/bundle.js
+.ionide/symbolCache.db
+test/package-test-app/public/bundle.js
+test/package-test-app/public/bundle.js

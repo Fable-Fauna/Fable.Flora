@@ -148,6 +148,7 @@ let (|IdentCodon|_|) = function
         match UTF8Encoding.UTF8.GetBytes([|c|]) with
         | [|u|] when u >= 65uy && u <= 90uy -> Some(c)
         | [|u|] when u >= 97uy && u <= 122uy -> Some(c)
+        | [|u|] when u >= 48uy && u <= 57uy -> Some(c)
         | [|95uy|] -> Some(c)
         | [|u|] when u > 128uy -> Some(c)
         | ary when ary.Length > 1 -> Some(c) //?

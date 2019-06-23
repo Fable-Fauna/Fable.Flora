@@ -59,6 +59,13 @@ let tests =
           Expect.equal ((snd result.Value).Head().Value) 's' "whitespace consumes correctly"
         }
 
+        test "identifer" {
+          let result = (|Ident|_|) (stream "is-5by4")
+
+          Expect.isTrue result.IsSome "takes stream"
+          Expect.equal (fst result.Value) "is-5by4" "whitespace consumes correctly"
+        }
+
         test "split with" {
           let str = (stream "! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */")
           let result = (|SplitWith|_|) "*/" str

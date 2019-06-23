@@ -31,14 +31,14 @@ let procCss (css : Rule list) =
                 for s in sseq.Selectors do
                   match s with
                   | SimpleSelector.Class(cls) -> 
-                      yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                      yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls)
                   | _ -> ()
               | SelectorGroup.Multiple(group) ->
                 for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
                   for s in sseq.Selectors do
                     match s with
                     | SimpleSelector.Class(cls) -> 
-                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                        yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls)
                     | _ -> ()
     }
     let n = 

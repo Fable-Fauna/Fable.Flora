@@ -15,6 +15,11 @@ open Fable.React.Props
 // MODEL
 type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
+type Bulma = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+
+
+let c1 = Bulma.Any.media.content
+
 type Model = int
 
 type Msg =

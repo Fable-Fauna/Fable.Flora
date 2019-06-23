@@ -24,6 +24,7 @@ module CssProviderHelpers =
                                   propertyType = typeof<string>,
                                   isStatic = true,
                                   getterCode = (fun _ -> Expr.Value g.Leaf.Value))  
+                valueProp.AddXmlDoc g.Leaf.Value
                 t.AddMember(valueProp)       
 
         for child in g.Children do
@@ -32,13 +33,19 @@ module CssProviderHelpers =
                     ProvidedProperty(propertyName = child.Name, 
                                   propertyType = typeof<string>,
                                   isStatic = true,
-                                  getterCode = (fun _ -> Expr.Value child.Leaf.Value ))  
+                                  getterCode = (fun _ -> Expr.Value child.Leaf.Value ))
+                valueProp.AddXmlDoc child.Leaf.Value                  
                 t.AddMember(valueProp)
             else 
                 let subtype = makeType child
                 t.AddMember(subtype)       
 
         t               
+
+module internal DesignTimeCache =
+  let cache = System.Collections.Concurrent.ConcurrentDictionary<string,ProvidedTypeDefinition>()
+
+  
 
 open CssProviderHelpers
 
@@ -54,24 +61,35 @@ type public CssProvider (config : TypeProviderConfig) as this =
     do generator.DefineStaticParameters(
         parameters = staticParams,
         instantiationFunction = 
-            (fun typeName pVals ->
-                match pVals with 
-                | [| :? string as file|] -> 
+            (fun typeName args ->
+                try 
+                  let file = args.[0] :?> string
+                  DesignTimeCache.cache.GetOrAdd(file, fun file ->
                     let graphs = CssProcesser.makeGraphFromCss file
                     //failwith (sprintf "graphs") 
                     
+                    //let fileWatcher = new FileSystemWatcher(file)
+
+                    //fileWatcher.Changed.Add(fun x -> DesignTimeCache.cache.TryRemove file |> ignore)
+
                     let root = 
                         ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
 
-                      
-
                     for graph in graphs do
                         let t = makeType graph
+                        //t.AddXmlDoc 
                         root.AddMember(t)
-                    root
-                | _ -> failwith "unexpected parameter values"                
-            )
+
+                    async {
+                        do! Async.Sleep 30000
+                        DesignTimeCache.cache.TryRemove file |> ignore
+                    } |> Async.Start
+
+                    root)
+                with 
+                | exn -> failwith (sprintf "%s ||| %s ||| %s" exn.Message exn.StackTrace exn.Source)
         )
+    )
 
     do this.AddNamespace(ns, [generator])
 
