@@ -9,7 +9,8 @@ open System.IO
 open ProviderImplementation.ProvidedTypes
 open FSharp.Quotations
 open ProviderImplementation
-
+open System.Net
+open System.Net.Http
 
 module CssProviderHelpers =
     open CssProcesser
@@ -19,33 +20,33 @@ module CssProviderHelpers =
     let rec makeType (g : Graph) =
         let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
         if g.Leaf.IsSome then
-                let valueProp = 
-                    ProvidedProperty(propertyName = "Value", 
+                let valueProp =
+                    ProvidedProperty(propertyName = "Value",
                                   propertyType = typeof<string>,
                                   isStatic = true,
-                                  getterCode = (fun _ -> Expr.Value g.Leaf.Value))  
+                                  getterCode = (fun _ -> Expr.Value g.Leaf.Value))
                 valueProp.AddXmlDoc g.Leaf.Value
-                t.AddMember(valueProp)       
+                t.AddMember(valueProp)
 
         for child in g.Children do
             if child.Leaf.IsSome && Array.isEmpty child.Children then
-                let valueProp = 
-                    ProvidedProperty(propertyName = child.Name, 
+                let valueProp =
+                    ProvidedProperty(propertyName = child.Name,
                                   propertyType = typeof<string>,
                                   isStatic = true,
                                   getterCode = (fun _ -> Expr.Value child.Leaf.Value ))
-                valueProp.AddXmlDoc child.Leaf.Value                  
+                valueProp.AddXmlDoc child.Leaf.Value
                 t.AddMember(valueProp)
-            else 
+            else
                 let subtype = makeType child
-                t.AddMember(subtype)       
+                t.AddMember(subtype)
 
-        t               
+        t
 
 module internal DesignTimeCache =
   let cache = System.Collections.Concurrent.ConcurrentDictionary<string,ProvidedTypeDefinition>()
 
-  
+
 
 open CssProviderHelpers
 
@@ -60,24 +61,47 @@ type public CssProvider (config : TypeProviderConfig) as this =
 
     do generator.DefineStaticParameters(
         parameters = staticParams,
-        instantiationFunction = 
+        instantiationFunction =
             (fun typeName args ->
-                try 
+                try
                   let file = args.[0] :?> string
                   DesignTimeCache.cache.GetOrAdd(file, fun file ->
-                    let graphs = CssProcesser.makeGraphFromCss file
-                    //failwith (sprintf "graphs") 
-                    
+
+                    let graphs =
+                        if file.StartsWith "http://" || file.StartsWith "https://"
+                        then
+                            // load content using http
+                            let content, statusCode =
+                                async {
+                                    use httpClient = new HttpClient()
+                                    match! Async.Catch(Async.AwaitTask (httpClient.GetAsync(file))) with
+                                    | Choice1Of2 httpMessage ->
+                                        let! content = Async.AwaitTask(httpMessage.Content.ReadAsStringAsync())
+                                        return content, int httpMessage.StatusCode
+                                    | Choice2Of2 error ->
+                                        return error.Message, 0
+                                }
+                                |> Async.RunSynchronously
+
+                            if statusCode = 200
+                            then CssProcesser.makeGraphFromCssContent content
+                            else failwithf "Error (%d) while retreiving the external stylesheet from %s\n%s" statusCode file content
+                        else
+                            // just (try to) read locally from file
+                            CssProcesser.makeGraphFromCss file
+
+                    //failwith (sprintf "graphs")
+
                     //let fileWatcher = new FileSystemWatcher(file)
 
                     //fileWatcher.Changed.Add(fun x -> DesignTimeCache.cache.TryRemove file |> ignore)
 
-                    let root = 
+                    let root =
                         ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
 
                     for graph in graphs do
                         let t = makeType graph
-                        //t.AddXmlDoc 
+                        //t.AddXmlDoc
                         root.AddMember(t)
 
                     async {
@@ -86,7 +110,7 @@ type public CssProvider (config : TypeProviderConfig) as this =
                     } |> Async.Start
 
                     root)
-                with 
+                with
                 | exn -> failwith (sprintf "%s ||| %s ||| %s" exn.Message exn.StackTrace exn.Source)
         )
     )
