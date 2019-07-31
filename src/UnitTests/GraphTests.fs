@@ -100,7 +100,7 @@ let AccepectenceTests =
 
         test "bulma_1" {
             let defs = parseCss issue14_highlight
-            let a = procCss defs
+            let a = processCss defs
             let g = a |> Array.map (fun (x,y) -> 
                 { Leaf = None
                   Name = x
