@@ -13,7 +13,7 @@ open Fable.React.Props
 
 
 // MODEL
-type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+type Tailwind = Flora.Stylesheet<"https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.css">
 
 type Model = int
 
