@@ -36,10 +36,16 @@ module CssProviderHelpers =
               t.AddMember(nt)
 
 
-module internal DesignTimeCache =
-  let cache = System.Collections.Concurrent.ConcurrentDictionary<string,ProvidedTypeDefinition>()
+module internal Internal =
+  type Key =
+    { File : string
+      Mode : CssProcesser.Strategy
+      Fable : bool
+    }
+  let cache = System.Collections.Concurrent.ConcurrentDictionary<Key,ProvidedTypeDefinition>()
+  let fileWatcher = new FileSystemWatcher()
 
-type Strategy =
+type NamingMode = 
   | Verbatim = 0
   | SnakeCase = 1
   | DirectedGraph = 2
@@ -54,18 +60,23 @@ type public CssProvider (config : TypeProviderConfig) as this =
 
     let staticParams = 
       [ ProvidedStaticParameter("file",typeof<string>);
-        ProvidedStaticParameter("naming", typeof<Strategy>, parameterDefaultValue = Strategy.Verbatim ) ]
+        ProvidedStaticParameter("naming", typeof<NamingMode>, parameterDefaultValue = NamingMode.Verbatim ) 
+        ProvidedStaticParameter("fable", typeof<bool>, parameterDefaultValue = true)]
     let generator = ProvidedTypeDefinition(asm, ns, "Stylesheet", Some typeof<obj>, isErased = true)
-
+    //TODO add xml doc to generator
     do generator.DefineStaticParameters(
         parameters = staticParams,
         instantiationFunction =
             (fun typeName args ->
                 try
-                  let file = args.[0] :?> string
-                  let strategy = args.[1] :?> CssProcesser.Strategy
-                  DesignTimeCache.cache.GetOrAdd(file, fun file ->
-
+                  let key : Internal.Key = { 
+                    File = args.[0] :?> string; 
+                    Mode = args.[1] :?> CssProcesser.Strategy
+                    Fable = args.[2] :?> bool}
+                  Internal.cache.GetOrAdd(key, fun key ->
+                    let file = key.File
+                    let strategy = key.Mode
+                    let fable = key.Fable
                     let graphs =
                         if file.StartsWith "http://" || file.StartsWith "https://"
                         then
@@ -86,14 +97,15 @@ type public CssProvider (config : TypeProviderConfig) as this =
                             then CssProcesser.makeGraphFromCssContent content strategy
                             else failwithf "Error (%d) while retreiving the external stylesheet from %s\n%s" statusCode file content
                         else
+
+                            Internal.fileWatcher.Path <- Path.GetDirectoryName(file)
+                            Internal.fileWatcher.Filter <- Path.GetFileName(file)
+                            Internal.fileWatcher.Changed.Add(fun x -> Internal.cache.TryRemove key |> ignore)
+                            Internal.fileWatcher.EnableRaisingEvents <- true
                             // just (try to) read locally from file
                             CssProcesser.makeGraphFromCss file strategy
 
                     //failwith (sprintf "graphs")
-
-                    //let fileWatcher = new FileSystemWatcher(file)
-
-                    //fileWatcher.Changed.Add(fun x -> DesignTimeCache.cache.TryRemove file |> ignore)
 
                     let root =
                         ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
@@ -101,12 +113,6 @@ type public CssProvider (config : TypeProviderConfig) as this =
                     for graph in graphs do
                         makeType graph root
                         //t.AddXmlDoc
-
-
-                    async {
-                        do! Async.Sleep 30000
-                        DesignTimeCache.cache.TryRemove file |> ignore
-                    } |> Async.Start
 
                     root)
                 with
