@@ -82,33 +82,23 @@ let AccepectenceTests =
     testList "Graph Tests" [
         test "tailwind" {
 
-            let g = makeGraphFromCss "../../../../../test/tailwind.css"
+            let g = makeGraphFromCss "../../../../../test/tailwind.css" Strategy.Verbatim
             Expect.isTrue (g.Length = 1) (sprintf "token length: %i"  g.Length)
         };
 
         test "bulma" {
-            let g = makeGraphFromCss "../../../../../test/bulma.css"
+            let g = makeGraphFromCss "../../../../../test/bulma.css" Strategy.Verbatim
            
             Expect.isTrue (g.Length = 7) (sprintf "token length: %i"  g.Length)
         }
 
         test "bootstrap" {
-            let g = makeGraphFromCss "../../../../../test/bootstrap.css"
+            let g = makeGraphFromCss "../../../../../test/bootstrap.css" Strategy.Verbatim
             
             Expect.isTrue (g.Length = 7) (sprintf "token length: %i"  g.Length)
         }
 
-        test "bulma_1" {
-            let defs = parseCss issue14_highlight
-            let a = processCss defs
-            let g = a |> Array.map (fun (x,y) -> 
-                { Leaf = None
-                  Name = x
-                  Children = produceGraph y
-                })
-            
-            Expect.isTrue (g.Length = 1) (sprintf "token length: %i"  g.Length)
-        }
+       
 
 
     ]

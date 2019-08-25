@@ -13,12 +13,15 @@ open Fable.React.Props
 
 
 // MODEL
-type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
+type Tailwind = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css", naming = Flora.CssProvider.Strategy.DirectedGraph>
 
-type Bulma = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+type Bulma = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css", naming = Flora.CssProvider.Strategy.DirectedGraph>
 
+type Tailwind2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
-let c1 = Bulma.Any.media.content
+type Bulma2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+
+let c1 = Bulma.Any.tile
 
 type Model = int
 
@@ -40,9 +43,9 @@ let update (msg:Msg) (model:Model) =
 let view (model:Model) dispatch =
 
   div [ ]
-      [ button [ OnClick (fun _ -> dispatch Increment); Class Tailwind.Any.``hover:bg``.blue.light  ] [ str "+" ]
+      [ button [ OnClick (fun _ -> dispatch Increment); Class Tailwind2.``bg-green-darkest`` ] [ str "+" ]
         div [] [ str (string model) ]
-        button [ OnClick (fun _ -> dispatch Decrement) ; Class Tailwind.Any.``hover:bg``.blue.light ] [ str "-" ] ]
+        button [ OnClick (fun _ -> dispatch Decrement) ; Class Tailwind.Any.``hover:capitalize`` ] [ str "-" ] ]
 
 // App
 Program.mkSimple init update view

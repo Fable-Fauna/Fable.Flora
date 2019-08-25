@@ -17,36 +17,32 @@ module CssProviderHelpers =
 
     let (|Singleton|) = function [l] -> l | _ -> failwith "Parameter mismatch"
 
-    let rec makeType (g : Graph) =
-        let t = ProvidedTypeDefinition(g.Name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
-        if g.Leaf.IsSome then
-                let valueProp =
-                    ProvidedProperty(propertyName = "Value",
-                                  propertyType = typeof<string>,
-                                  isStatic = true,
-                                  getterCode = (fun _ -> Expr.Value g.Leaf.Value))
-                valueProp.AddXmlDoc g.Leaf.Value
-                t.AddMember(valueProp)
+    let rec makeType (g : Graph) (t : ProvidedTypeDefinition) =
+        match g with
+        | Class(cls) ->
+          let valueProp =
+              ProvidedProperty(propertyName = cls.Name,
+                            propertyType = typeof<string>,
+                            isStatic = true,
+                            getterCode = (fun _ -> Expr.Value cls.ClassName ))
+          valueProp.AddXmlDoc cls.ClassName
+          t.AddMember(valueProp)
 
-        for child in g.Children do
-            if child.Leaf.IsSome && Array.isEmpty child.Children then
-                let valueProp =
-                    ProvidedProperty(propertyName = child.Name,
-                                  propertyType = typeof<string>,
-                                  isStatic = true,
-                                  getterCode = (fun _ -> Expr.Value child.Leaf.Value ))
-                valueProp.AddXmlDoc child.Leaf.Value
-                t.AddMember(valueProp)
-            else
-                let subtype = makeType child
-                t.AddMember(subtype)
 
-        t
+        | Node(name,graphs) ->
+          let nt = ProvidedTypeDefinition(name, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
+          for child in graphs do
+              makeType child nt
+              t.AddMember(nt)
+
 
 module internal DesignTimeCache =
   let cache = System.Collections.Concurrent.ConcurrentDictionary<string,ProvidedTypeDefinition>()
 
-
+type Strategy =
+  | Verbatim = 0
+  | SnakeCase = 1
+  | DirectedGraph = 2
 
 open CssProviderHelpers
 
@@ -56,7 +52,9 @@ type public CssProvider (config : TypeProviderConfig) as this =
     let asm = System.Reflection.Assembly.GetExecutingAssembly()
     let ns = "Flora"
 
-    let staticParams = [ProvidedStaticParameter("file",typeof<string>)]
+    let staticParams = 
+      [ ProvidedStaticParameter("file",typeof<string>);
+        ProvidedStaticParameter("naming", typeof<Strategy>, parameterDefaultValue = Strategy.Verbatim ) ]
     let generator = ProvidedTypeDefinition(asm, ns, "Stylesheet", Some typeof<obj>, isErased = true)
 
     do generator.DefineStaticParameters(
@@ -65,6 +63,7 @@ type public CssProvider (config : TypeProviderConfig) as this =
             (fun typeName args ->
                 try
                   let file = args.[0] :?> string
+                  let strategy = args.[1] :?> CssProcesser.Strategy
                   DesignTimeCache.cache.GetOrAdd(file, fun file ->
 
                     let graphs =
@@ -84,11 +83,11 @@ type public CssProvider (config : TypeProviderConfig) as this =
                                 |> Async.RunSynchronously
 
                             if statusCode = 200
-                            then CssProcesser.makeGraphFromCssContent content
+                            then CssProcesser.makeGraphFromCssContent content strategy
                             else failwithf "Error (%d) while retreiving the external stylesheet from %s\n%s" statusCode file content
                         else
                             // just (try to) read locally from file
-                            CssProcesser.makeGraphFromCss file
+                            CssProcesser.makeGraphFromCss file strategy
 
                     //failwith (sprintf "graphs")
 
@@ -100,9 +99,9 @@ type public CssProvider (config : TypeProviderConfig) as this =
                         ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
 
                     for graph in graphs do
-                        let t = makeType graph
+                        makeType graph root
                         //t.AddXmlDoc
-                        root.AddMember(t)
+
 
                     async {
                         do! Async.Sleep 30000
