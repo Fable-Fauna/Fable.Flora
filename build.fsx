@@ -36,24 +36,7 @@ module Util =
                 | None -> line
                 | Some newLine -> newLine)
 
-let platformTool tool =
-    Process.tryFindFileOnPath tool
-    |> function Some t -> t | _ -> failwithf "%s not found" tool
 
-let run (cmd:string) dir args  =
-    if Process.execSimple (fun info ->
-        { info with
-            FileName = cmd
-            WorkingDirectory =
-                if not (String.IsNullOrWhiteSpace dir) then dir else info.WorkingDirectory
-            Arguments = args
-        }
-    ) TimeSpan.MaxValue <> 0 then
-        failwithf "Error while running '%s' with args: %s " cmd args
-
-let yarnTool = platformTool "yarn"
-
-let yarn = run yarnTool "./"
 
 Target.create "Clean" (fun _ ->
     !! "src/**/bin"
@@ -80,12 +63,6 @@ Target.create "QuickBuild" (fun _ ->
     |> Seq.map IO.Path.GetDirectoryName 
     |> Seq.iter (fun x -> DotNet.build (fun p -> {p with Configuration = DotNet.BuildConfiguration.Debug}) x )
 )
-
-
-Target.create "YarnInstall" (fun _ ->
-    yarn "install"
-)
-
 
 
 // --------------------------------------------------------------------------------------
@@ -128,11 +105,12 @@ let createNugetV2 (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
     ||> Util.replaceLines (fun line _ ->
                                 versionRegex.Replace(line, "<releaseNotes>"+(toPackageReleaseNotes releaseNotes.Notes)+"</releaseNotes>") |> Some)                                                               
 
+    File.Copy(@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\Flora.CssProvider.nuspec",@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\obj\Release\Flora.CssProvider.nuspec")
     let result =
         DotNet.exec
             (DotNet.Options.withWorkingDirectory projDir)
             "pack"
-            (sprintf " Flora.CssProvider.fsproj -c Release --no-build -p:NuspecFile=\"Flora.CssProvider.nuspec\"" )
+            @" Flora.CssProvider.fsproj -c Release --no-build -p:NuspecFile=Flora.CssProvider.nuspec"
 
     if not result.OK then failwithf "dotnet pack failed with code %i" result.ExitCode
 
@@ -170,15 +148,15 @@ let pushNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
 
 
 Target.create "CreateNugets" (fun _ ->
-    ["src/Flora.CssParser/Flora.CssParser.fsproj"]
-    |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
-    |> Seq.iter (fun (proj,notes) -> createNuget notes proj)
+    let proj = "src/Flora.CssParser/Flora.CssParser.fsproj"
+    let notes =  (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load
+    createNuget notes proj
 )
 
 Target.create "CreateNugets2" (fun _ ->
-    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"]
-    |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
-    |> Seq.iter (fun (proj,notes) -> createNugetV2 notes proj)
+    let proj = "src/Flora.CssProvider/Flora.CssProvider.fsproj"
+    let notes = (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load
+    createNugetV2 notes proj
 )
 
 Target.create "PublishNugets" (fun _ ->
@@ -196,12 +174,7 @@ Target.create "PublishNugets" (fun _ ->
     ==> "Build"
     ==> "CreateNugets"
     ==> "CreateNugets2"
-//    ==> "PublishNugets"
-
-"Build"
-    ==> "YarnInstall"
-
-
+    //==> "PublishNugets"
 
 // start build
 Target.runOrDefault "Build"

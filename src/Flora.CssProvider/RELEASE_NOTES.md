@@ -1,3 +1,7 @@
+### 0.7.0
+* Add naming stragies
+* Add css variables (get and set)
+
 ### 0.6.3
 * Allow for pulling css from web url (PR #17 by Zaid-Ajaj)
 
