@@ -261,3 +261,5 @@ test/package-test-app/public/bundle.js
 .ionide/symbolCache.db
 test/package-test-app/public/bundle.js
 test/package-test-app/public/bundle.js
+test/tailwind-test-app/.ionide/symbolCache.db
+test/tailwind-test-app/src/.ionide/symbolCache.db
