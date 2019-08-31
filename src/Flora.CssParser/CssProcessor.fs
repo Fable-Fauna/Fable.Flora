@@ -64,7 +64,9 @@ type Graph =
     | Node of string * Graph[]
     | Class of Class
 
-
+type StyleSheetResult =
+  { Graphs : Graph []
+    Variables : string [] }
 
 let rec produceGraph (classes :(string list * string) []) : Graph [] =
     classes
@@ -141,10 +143,10 @@ let processCss (strategy : Strategy) (content : Rule list) : Graph seq =
 
 /// Creates the CSS graphs from a string containing the css definitions
 let makeGraphFromCssContent content strategy =
-    content
-    |> parseCss
-    |> processCss strategy
-    |> Seq.toArray
+    let styl = parseCss content
+    let graph = processCss strategy styl.Rules |> Seq.toArray
+    { Graphs = graph
+      Variables = styl.Variables |> Seq.toArray }
 
 /// Creates the CSS graphs from a local file containing the css definitions after reading the contents of the file
 let makeGraphFromCss filename strategy =

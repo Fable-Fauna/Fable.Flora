@@ -5,7 +5,15 @@ module CssVaribles =
     open Tokenizer
     open Stream
 
-    let extractCssVariables (input :IStream<Token>) = () //todo look for ident with -- prefix
+    let extractCssVariables (input :Token list) =
+        input |> List.fold (fun acc x -> 
+          match x with
+          | Token.Ident(v) ->
+            if v.StartsWith("--") then v :: acc else acc
+          | _ -> acc
+          ) []
+          |> Seq.distinct |> Seq.toList
+       
 
 module ParseShaper =
     open Tokenizer
@@ -25,6 +33,7 @@ module ParseShaper =
         | Function of string * BlockShape
 
     and BlockShape = ComponentShape list
+      
 
 
 
@@ -139,7 +148,8 @@ module SelectorsParser =
 
 
     type Stylesheet =
-        Rule list
+        { Rules : Rule list
+          Variables : string list }
 
     and SelectorGroup =
         | Single of SelectorSeq
@@ -323,12 +333,15 @@ module SelectorsParser =
         | RuleShape.Qualified(ls,bs) -> Rule.Qualified(parseSelectorGroup ls, bs)
         | RuleShape.At(s,ls,bs) -> Rule.At(s, (parseSelectorGroup ls), bs)
 
-    let parseStylesheet (shape : StylesheetShape) : Stylesheet =
+    let parseStylesheet (shape : StylesheetShape) =
         shape |> List.map parseRule
+          
 
-    let parseCss (text : string) =
+    let parseCss (text : string) : Stylesheet =
       let tref = ref (text.ToCharArray())
       let stream = CachelessStream(tref,0) :> IStream<char>
-      let tstream = tokenStream stream
-      let pshape = parseShape tstream
-      parseStylesheet pshape
+      let tlist = tokenStream stream
+      let variables = CssVaribles.extractCssVariables tlist
+      let pshape = parseShape tlist
+      { Rules = parseStylesheet pshape
+        Variables = variables }

@@ -77,28 +77,40 @@ let issue14_highlight = ".is-large.delete, .is-large.modal-close {
   vertical-align: top;
   }"
 
+let varTest = ":root {
+--main-bg-color: pink;
+}
+
+body {
+background-color: var(--main-bg-color);
+}"
+
 [<Tests>]
 let AccepectenceTests =
     testList "Graph Tests" [
         test "tailwind" {
 
             let g = makeGraphFromCss "../../../../../test/tailwind.css" Strategy.Verbatim
-            Expect.isTrue (g.Length = 1) (sprintf "token length: %i"  g.Length)
+            Expect.isTrue (g.Graphs.Length > 10) (sprintf "token length: %i"  g.Graphs.Length)
         };
 
         test "bulma" {
             let g = makeGraphFromCss "../../../../../test/bulma.css" Strategy.Verbatim
            
-            Expect.isTrue (g.Length = 7) (sprintf "token length: %i"  g.Length)
+            Expect.isTrue (g.Graphs.Length > 10) (sprintf "token length: %i"  g.Graphs.Length)
         }
 
         test "bootstrap" {
             let g = makeGraphFromCss "../../../../../test/bootstrap.css" Strategy.Verbatim
             
-            Expect.isTrue (g.Length = 7) (sprintf "token length: %i"  g.Length)
+            Expect.isTrue (g.Graphs.Length > 10) (sprintf "token length: %i"  g.Graphs.Length)
         }
 
-       
+        test "vars" {
+          let g = makeGraphFromCssContent varTest Strategy.Verbatim
+          Expect.hasLength g.Variables 1 "found one"
+          Expect.hasLength g.Graphs 0 "no classes"
+        }
 
 
     ]

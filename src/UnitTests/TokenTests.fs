@@ -19,19 +19,19 @@ let AccepectenceTests =
             let testText = File.ReadAllText("../../../../../test/tailwind.css")
            
             let ptree = parseCss testText
-            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
+            Expect.isTrue (ptree.Rules.Length > 1000) (sprintf "token length: %i"  ptree.Rules.Length)
         };
 
         test "bulma" {
             let testText = File.ReadAllText("../../../../../test/bulma.css")
             let ptree = parseCss testText
-            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
+            Expect.isTrue (ptree.Rules.Length > 1000) (sprintf "token length: %i"  ptree.Rules.Length)
         }
 
         test "bootstrap" {
             let testText = File.ReadAllText("../../../../../test/bootstrap.css")
             let ptree = parseCss testText
-            Expect.isTrue (ptree.Length > 1000) (sprintf "token length: %i"  ptree.Length)
+            Expect.isTrue (ptree.Rules.Length > 1000) (sprintf "token length: %i"  ptree.Rules.Length)
         }
     ]
 
@@ -82,7 +82,7 @@ let ParseTests =
 }
 "
             let ptree = parseCss testText
-            Expect.isTrue (ptree.Length = 2) (sprintf "token length: %i"  ptree.Length)
+            Expect.isTrue (ptree.Rules.Length = 2) (sprintf "token length: %i"  ptree.Rules.Length)
         };
 
 
@@ -98,7 +98,7 @@ let ParseTests =
           }
 "
           let ptree = parseCss testText
-          Expect.isTrue (ptree.Length = 1) (sprintf "token length: %i"  ptree.Length)
+          Expect.isTrue (ptree.Rules.Length = 1) (sprintf "token length: %i"  ptree.Rules.Length)
         };
 
        

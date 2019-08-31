@@ -1,9 +1,18 @@
 // ts2fable 0.6.1
+
+namespace Fable.Core
+
+type EmitAttribute(macro: string) =
+    inherit System.Attribute()
+
+module Util =
+  let inline jsNative<'T> : 'T =
+      try failwith "JS only" // try/catch is just for padding so it doesn't get optimized
+      with ex -> raise ex
+
+
 namespace Flora.CssProvider
 open System
-// open Fable.Core
-// open Fable.Import.JS
-// open Fable.Import.Browser
 open Microsoft.FSharp.Core.CompilerServices
 open System.IO
 open ProviderImplementation.ProvidedTypes
@@ -11,6 +20,15 @@ open FSharp.Quotations
 open ProviderImplementation
 open System.Net
 open System.Net.Http
+
+module internal Internal =
+  type Key =
+    { File : string
+      Mode : CssProcesser.Strategy
+      Fable : bool
+    }
+  let cache = System.Collections.Concurrent.ConcurrentDictionary<Key,ProvidedTypeDefinition>()
+  let fileWatcher = new FileSystemWatcher()
 
 module CssProviderHelpers =
     open CssProcesser
@@ -35,15 +53,36 @@ module CssProviderHelpers =
               makeType child nt
               t.AddMember(nt)
 
+    open Fable.Core
 
-module internal Internal =
-  type Key =
-    { File : string
-      Mode : CssProcesser.Strategy
-      Fable : bool
-    }
-  let cache = System.Collections.Concurrent.ConcurrentDictionary<Key,ProvidedTypeDefinition>()
-  let fileWatcher = new FileSystemWatcher()
+    [<Emit("document.documentElement.style.setProperty('$0', '$1');")>]
+    let setCssVariable (name : string) (value : string) : unit = Util.jsNative
+
+    [<Emit("window.getComputedStyle(document.documentElement).getPropertyValue('$0');")>]
+    let getCssVariable (name : string) : string = Util.jsNative
+
+    let getterCode name =
+      fun (args: Expr list) -> <@@ getCssVariable name @@>
+
+    let setterCode name =
+      fun (args: Expr list) -> <@@ setCssVariable name %%args.[0] @@>
+
+
+    let makeVariables (v : string []) (t : ProvidedTypeDefinition) =
+       let nt = ProvidedTypeDefinition("Variables", baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
+
+       for var in v do
+          let name = var.Remove(0,2)
+          let valueProp =
+            ProvidedProperty(propertyName = name,
+                          propertyType = typeof<string>,
+                          isStatic = true,
+                          getterCode = getterCode var,
+                          setterCode = setterCode var
+            )
+          valueProp.AddXmlDoc var
+          nt.AddMember(valueProp)
+       t.AddMember(nt)
 
 type NamingMode = 
   | Verbatim = 0
@@ -71,13 +110,13 @@ type public CssProvider (config : TypeProviderConfig) as this =
                 try
                   let key : Internal.Key = { 
                     File = args.[0] :?> string; 
-                    Mode = args.[1] :?> CssProcesser.Strategy
+                    Mode = args.[1] :?> CssProcesser.Strategy //lazy casting
                     Fable = args.[2] :?> bool}
                   Internal.cache.GetOrAdd(key, fun key ->
                     let file = key.File
                     let strategy = key.Mode
                     let fable = key.Fable
-                    let graphs =
+                    let styl =
                         if file.StartsWith "http://" || file.StartsWith "https://"
                         then
                             // load content using http
@@ -110,10 +149,10 @@ type public CssProvider (config : TypeProviderConfig) as this =
                     let root =
                         ProvidedTypeDefinition(asm, ns, typeName, baseType = Some typeof<obj>, hideObjectMethods = true, isErased = true)
 
-                    for graph in graphs do
+                    for graph in styl.Graphs do
                         makeType graph root
-                        //t.AddXmlDoc
 
+                    makeVariables styl.Variables root
                     root)
                 with
                 | exn -> failwith (sprintf "%s ||| %s ||| %s" exn.Message exn.StackTrace exn.Source)
