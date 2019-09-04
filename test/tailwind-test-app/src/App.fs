@@ -19,11 +19,14 @@ type Bulma = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna
 
 type Tailwind2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
-//type Bulma2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css"> //failing do to overloads
+type Bulma2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
+
+type Bootstrap = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bootstrap.css", naming = Flora.CssProvider.NamingMode.SnakeCase>
 
 type Vars = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/varablestest.css">
 
 let c1 = Bulma.Any.tile
+let c2 = Bootstrap.alert_danger
 
 type Model = int
 

@@ -92,27 +92,27 @@ let toPackageReleaseNotes (notes: string list) =
     |> (fun txt -> txt.Replace("\"", "\\\""))
 
 //build nuspec
-let createNugetV2 (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
-    let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
-    let nuspec = projFile.Remove(projFile.Length-6,6) + "nuspec"
-    let projDir = Path.GetDirectoryName(projFile)
+// let createNugetV2 (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
+//     let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
+//     let nuspec = projFile.Remove(projFile.Length-6,6) + "nuspec"
+//     let projDir = Path.GetDirectoryName(projFile)
     
-    (versionRegex, nuspec)
-    ||> Util.replaceLines (fun line _ ->
-                                versionRegex.Replace(line, "<version>"+releaseNotes.NugetVersion+"</version>") |> Some)
+//     (versionRegex, nuspec)
+//     ||> Util.replaceLines (fun line _ ->
+//                                 versionRegex.Replace(line, "<version>"+releaseNotes.NugetVersion+"</version>") |> Some)
 
-    (Regex("<releaseNotes>(.*?)</releaseNotes>", RegexOptions.IgnoreCase), nuspec)
-    ||> Util.replaceLines (fun line _ ->
-                                versionRegex.Replace(line, "<releaseNotes>"+(toPackageReleaseNotes releaseNotes.Notes)+"</releaseNotes>") |> Some)                                                               
+//     (Regex("<releaseNotes>(.*?)</releaseNotes>", RegexOptions.IgnoreCase), nuspec)
+//     ||> Util.replaceLines (fun line _ ->
+//                                 versionRegex.Replace(line, "<releaseNotes>"+(toPackageReleaseNotes releaseNotes.Notes)+"</releaseNotes>") |> Some)                                                               
 
-    File.Copy(@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\Flora.CssProvider.nuspec",@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\obj\Release\Flora.CssProvider.nuspec")
-    let result =
-        DotNet.exec
-            (DotNet.Options.withWorkingDirectory projDir)
-            "pack"
-            @" Flora.CssProvider.fsproj -c Release --no-build -p:NuspecFile=Flora.CssProvider.nuspec"
+//     File.Copy(@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\Flora.CssProvider.nuspec",@"C:\Users\Orlando\Desktop\Projects2019\Fable-Fauna\Fable.Flora\src\Flora.CssProvider\obj\Release\Flora.CssProvider.nuspec")
+//     let result =
+//         DotNet.exec
+//             (DotNet.Options.withWorkingDirectory projDir)
+//             "pack"
+//             @" Flora.CssProvider.fsproj -c Release --no-build -p:NuspecFile=Flora.CssProvider.nuspec"
 
-    if not result.OK then failwithf "dotnet pack failed with code %i" result.ExitCode
+//     if not result.OK then failwithf "dotnet pack failed with code %i" result.ExitCode
 
 
 
@@ -131,21 +131,27 @@ let pushNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
     let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
     let projDir = Path.GetDirectoryName(projFile)
 
-    if needsPublishing versionRegex releaseNotes projFile then
-        (versionRegex, projFile)
-        ||> Util.replaceLines (fun line _ ->
-                                    versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
+    // if needsPublishing versionRegex releaseNotes projFile then
+    //     (versionRegex, projFile)
+    //     ||> Util.replaceLines (fun line _ ->
+    //                                 versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
 
-        let nugetKey =
-            match  Environment.environVarOrNone "NUGET_KEY" with
-            | Some nugetKey -> nugetKey
-            | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
-        Directory.GetFiles(projDir </> "bin" </> "Release", "*.nupkg")
-        |> Array.find (fun nupkg -> nupkg.Contains(releaseNotes.NugetVersion))
-        |> (fun nupkg ->
-            Paket.push (fun p -> { p with ApiKey = nugetKey
-                                          WorkingDir = Path.getDirectory nupkg }))
+    let nugetKey =
+        match  Environment.environVarOrNone "NUGET_KEY" with
+        | Some nugetKey -> nugetKey
+        | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
+    Directory.GetFiles(projDir </> "bin" </> "Release", "*.nupkg")
+    |> Array.find (fun nupkg -> nupkg.Contains(releaseNotes.NugetVersion))
+    |> (fun nupkg ->
+        Paket.push (fun p -> { p with ApiKey = nugetKey
+                                      WorkingDir = Path.getDirectory nupkg }))
 
+
+Target.create "ForcePush" (fun _ -> 
+    let proj = "src/Flora.CssProvider/Flora.CssProvider.fsproj"
+    let notes =  (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load
+    pushNuget notes proj
+)
 
 Target.create "CreateNugets" (fun _ ->
     let proj = "src/Flora.CssParser/Flora.CssParser.fsproj"
@@ -156,7 +162,7 @@ Target.create "CreateNugets" (fun _ ->
 Target.create "CreateNugets2" (fun _ ->
     let proj = "src/Flora.CssProvider/Flora.CssProvider.fsproj"
     let notes = (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load
-    createNugetV2 notes proj
+    createNuget notes proj
 )
 
 Target.create "PublishNugets" (fun _ ->

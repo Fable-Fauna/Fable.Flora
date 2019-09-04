@@ -1,22 +1,28 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <Version>0.7.0</Version>
+    <Version>0.7.1</Version>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+
+    <Authors>musheddev</Authors>
+    <Product>Fable.Flora</Product>
+    <PackageTags>f#;fsharp;css</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>NetStandard Type provider to provide classnames from a css file.</Description>
+    <AssemblyName>Flora.CssProvider</AssemblyName>
+    <PackageProjectUrl>https://github.com/Fable-Fauna/Fable.Flora</PackageProjectUrl>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <DefineConstants>$(DefineConstants);NETSTANDARD2_0;NO_GENERATIVE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Flora.CssParser\Stream.fs" />
+    <Compile Include="..\Flora.CssParser\Tokenizer.fs" />
+    <Compile Include="..\Flora.CssParser\Parser.fs" />
+    <Compile Include="..\Flora.CssParser\CssProcessor.fs" />
     <Compile Include="ProvidedTypes.fs" />
     <Compile Include="CssProvider.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Flora.CssParser\Flora.CssParser.fsproj" />
-  </ItemGroup>
-  <PropertyGroup>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-  </PropertyGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

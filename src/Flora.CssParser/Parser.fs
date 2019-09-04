@@ -151,9 +151,14 @@ module SelectorsParser =
         { Rules : Rule list
           Variables : string list }
 
+    and MultiSelectorSeq =
+      { Head : SelectorSeq
+        List : (Combinator * SelectorSeq) []
+      }
+
     and SelectorGroup =
         | Single of SelectorSeq
-        | Multiple of {| Head : SelectorSeq; Ls : (Combinator * SelectorSeq) [] |}
+        | Multiple of MultiSelectorSeq
 
 
 
@@ -310,8 +315,8 @@ module SelectorsParser =
               | Combinator(c,SelectorSequence(s,left)) ->
                 let result =
                   match results with
-                  | SelectorGroup.Single(first) -> SelectorGroup.Multiple({|Head = first; Ls = [|c,s|]|})
-                  | SelectorGroup.Multiple(many) -> SelectorGroup.Multiple({|Head = many.Head; Ls = Array.append many.Ls [|c,s|]|})
+                  | SelectorGroup.Single(first) -> SelectorGroup.Multiple({Head = first; List = [|c,s|]})
+                  | SelectorGroup.Multiple(many) -> SelectorGroup.Multiple({Head = many.Head; List = Array.append many.List [|c,s|]})
                 Some(result,(MaybeWhitespace left)),true
               | left -> Some(results,left),false
             )

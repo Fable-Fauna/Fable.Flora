@@ -17,7 +17,7 @@ let processCssGraph (css : Rule list) =
                       yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
                   | _ -> ()
               | SelectorGroup.Multiple(group) ->
-                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                for sseq in group.Head :: (group.List |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
                   for s in sseq.Selectors do
                     match s with
                     | SimpleSelector.Class(cls) ->
@@ -34,7 +34,7 @@ let processCssGraph (css : Rule list) =
                       yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls)
                   | _ -> ()
               | SelectorGroup.Multiple(group) ->
-                for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
+                for sseq in group.Head :: (group.List |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
                   for s in sseq.Selectors do
                     match s with
                     | SimpleSelector.Class(cls) ->
@@ -85,60 +85,58 @@ let rec produceGraph (classes :(string list * string) []) : Graph [] =
         | None -> Graph.Node(x, produceGraph flex)
        )
     |> Seq.toArray
+    
+let distinctGraph = Seq.distinctBy (function | Node(str,g) -> str | Class(cls) -> cls.ClassName)
 
 
 let processCss (strategy : Strategy) (content : Rule list) : Graph seq =
 
-   let clss sgl body =
-    seq { for y in sgl do
-      match y with
-      | SelectorGroup.Single(sseq) ->
-        for s in sseq.Selectors do
-          match s with
-          | SimpleSelector.Class(cls) ->
-              yield Graph.Class { Name = cls; ClassName = cls; ToolTip = None; Body = body }
-          | _ -> ()
+  let GraphClass body tooltip name_transform =
+    function 
+    | SimpleSelector.Class(cls) -> 
+      let cls_name = name_transform cls
+      Graph.Class { Name = cls_name; ClassName = cls; ToolTip = tooltip; Body = body } |> Option.Some
+    | _ -> None
+
+  let GraphClasses sgl fn =
+    sgl
+    |> Seq.collect (function 
+      | SelectorGroup.Single(sseq) -> 
+          sseq.Selectors |> Seq.choose fn
       | SelectorGroup.Multiple(group) ->
-        for sseq in group.Head :: (group.Ls |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
-          for s in sseq.Selectors do
-            match s with
-            | SimpleSelector.Class(cls) ->
-                yield Graph.Class { Name = cls; ClassName = cls; ToolTip = None; Body = body }
-            | _ -> () }
+        group.Head :: (group.List |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) 
+        |> Seq.collect (fun sseq -> sseq.Selectors |> Seq.choose fn)
+      | _ -> Seq.empty<Graph>)
+    |> distinctGraph
 
-   match strategy with
-   | Strategy.Verbatim ->
-      content
-      |> Seq.collect (fun x -> 
-        match x with
-        | Rule.Qualified(sgl,blk) ->
-          let body = sprintf "%O" blk
-          clss sgl body
-          
-
-        | Rule.At(name,sgl,blk) -> //need at rules name
-          let body = sprintf "%O" blk
-          let classes = clss sgl body |> Seq.toArray
-          seq { yield Graph.Node(name, classes) }
-         
-      )
-   | Strategy.SnakeCase ->
-      content
-      |> Seq.collect (fun x -> 
-        match x with
-        | Rule.Qualified(sgl,blk) ->
-          let body = sprintf "%O" blk
-          clss sgl body
-        
-
-        | Rule.At(name,sgl,blk) -> //need at rules name
-          let body = sprintf "%O" blk
-          let classes = clss sgl body |> Seq.toArray
-          seq { yield Graph.Node(name, classes) })
+  match strategy with
+  | Strategy.Verbatim ->
+    content
+    |> Seq.collect (function
+      | Rule.Qualified(sgl,blk) ->
+        let body = sprintf "%O" blk
+        GraphClasses sgl (GraphClass body None (fun x -> x))
+      | Rule.At(name,sgl,blk) -> //need at rules name
+        let body = sprintf "%O" blk
+        let classes = GraphClasses sgl (GraphClass body None (fun x -> x)) |> Seq.toArray
+        seq { yield Graph.Node(name, classes) })
+    |> distinctGraph
+  | Strategy.SnakeCase ->
+    content
+    |> Seq.collect (function
+      | Rule.Qualified(sgl,blk) ->
+        let body = sprintf "%O" blk
+        GraphClasses sgl (GraphClass body None (fun x -> x.Replace("-","_")))
+      | Rule.At(name,sgl,blk) -> //need at rules name
+        let body = sprintf "%O" blk
+        let classes = GraphClasses sgl (GraphClass body None (fun x -> x.Replace("-","_"))) |> Seq.toArray
+        seq { yield Graph.Node("@"+name, classes) })
+    |> distinctGraph
       
-   | Strategy.DirectedGraph ->
-      processCssGraph content
-      |> Seq.collect (fun (y,x) -> seq { yield Graph.Node(y,produceGraph x)})
+  | Strategy.DirectedGraph ->
+    processCssGraph content
+    |> Seq.map (fun (y,x) -> Graph.Node(y,produceGraph x))
+    |> distinctGraph
 
 
 /// Creates the CSS graphs from a string containing the css definitions

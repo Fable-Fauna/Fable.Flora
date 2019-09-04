@@ -1,3 +1,8 @@
+### 0.7.1
+* Fix snake case strategy
+* Fix property overloading issue
+* Fix FSharp.Core versioning?
+
 ### 0.7.0
 * Add naming stragies
 * Add css variables (get and set)

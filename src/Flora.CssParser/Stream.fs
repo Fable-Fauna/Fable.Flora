@@ -12,13 +12,19 @@ type IStream<'t> =
     abstract Length : unit -> int
     abstract Position : unit -> int
 
-type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
+type StreamState<'a> =
+  { Pos : int
+    TotalLength : int
+    Cache : 'a []
+  }
+
+type Stream<'a>( model : 'a [] ref, cacheSize : int, state : StreamState<'a>) =
     
     let mutable state = state
 
     new( model : 'a [] ref, cacheSize : int) = 
       let len = if model.Value.Length < cacheSize then model.Value.Length else cacheSize
-      Stream<'a>(model,cacheSize, {| Pos = 0; TotalLength = model.Value.Length; Cache = Array.sub model.Value 0 len |})
+      Stream<'a>(model,cacheSize, { Pos = 0; TotalLength = model.Value.Length; Cache = Array.sub model.Value 0 len })
 
     interface IStream<'a> with
         member this.Length(): int = 
@@ -52,11 +58,11 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
 
         member this.Consume len = 
             match state.Cache.Length, len with
-            | _,b when b < 0 -> failwith "cannot consume negitive length"
+            | _,b when b < 0 -> failwith "cannot consume negative length"
             | a,b when a > b -> 
-                 Stream<'a>(model,cacheSize,{| state with 
+                 Stream<'a>(model,cacheSize,{ state with 
                     Pos = state.Pos + len; 
-                    Cache = Array.skip len state.Cache |}) :> IStream<'a>                
+                    Cache = Array.skip len state.Cache }) :> IStream<'a>                
             | a,b when state.Pos + b <= state.TotalLength && a <= b -> 
                 let readlen = 
                   if state.Pos + state.Cache.Length + cacheSize > state.TotalLength 
@@ -64,15 +70,15 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
                   else cacheSize
                 let temp = Array.sub model.Value (state.Pos + state.Cache.Length) readlen
                 let temp2 = Array.append state.Cache temp
-                Stream<'a>(model,cacheSize,{| state with 
+                Stream<'a>(model,cacheSize,{ state with 
                   Pos = state.Pos + len; 
-                  Cache = Array.skip len temp2|}) :> IStream<'a>                   
+                  Cache = Array.skip len temp2}) :> IStream<'a>                   
             | _,_ -> failwith "stream consume exceeds limit"
 
 
         member this.Read length =
             match state.Cache.Length, length with
-            | _,len when len < 0 -> failwith "cannot read negitive length"
+            | _,len when len < 0 -> failwith "cannot read negative length"
             | _,0 -> None
             | cl,len when cl >= len -> Some (Array.sub state.Cache 0 len)
             | cl,len when cl < len && state.Pos + len <= state.TotalLength ->
@@ -81,8 +87,7 @@ type Stream<'a>( model : 'a [] ref, cacheSize : int, state ) =
                   if temp + state.Pos > state.TotalLength then state.TotalLength - state.Pos else temp
 
                 let n_ary = Array.sub model.Value state.Pos readlen
-                state <- {| state with  
-                  Cache = n_ary|}
+                state <- { state with Cache = n_ary}
                 Some (Array.sub n_ary 0 len)
             | a,b when a < b -> None //outofbounds
 
