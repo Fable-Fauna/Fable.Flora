@@ -5,11 +5,9 @@ Spec Module Level 3 https://www.w3.org/TR/css-syntax-3/
 # Flora.CssProvider
 A type provider for consumption in both .NET and Fable runtimes to provide class names found in css style sheets. And themeing support via auto injecting css varibles.
 
-## Classes
+## Css Classes
 
 The default naming scheme is exact. 
-
-Note: Not all overloading issuses have been solved, it works with tailwind though.
 
 ``` fsharp
 type Tailwind = Flora.Stylesheet<"../tailwind.css">
@@ -33,7 +31,7 @@ let view model dispatch =
 
 ## Css Variables
 
-When using the type provider with fable, the type provider will create mutable properties with will read and set css varibles to the root document. Calls `document.documentElement.style.setProperty(...)` and `window.getComputedStyle(document.documentElement).getPropertyValue(...)` behind the curtain.
+When using the type provider with fable, the type provider will create mutable properties that will read and set css varibles to the root document. Behind the curtain it calls `document.documentElement.style.setProperty(...)` and `window.getComputedStyle(document.documentElement).getPropertyValue(...)` and does not try to pull the value out of the css document its self.
 
 
 ``` fsharp
@@ -44,17 +42,17 @@ type Msg =
 
 let update (msg:Msg) (model:Model) =
     match msg with
-    | ChangeColor -> Vars.Variables.``main-bg-color`` <- "blue"; model //Set Css Variable found in in variabletest.css
+    | ChangeColor -> VariableTest.Variables.``main-bg-color`` <- "blue"; model //Set Css Variable found in in variabletest.css
 
 let view (model:Model) dispatch =
   button [ OnClick (fun _ -> dispatch ChangeColor) ; Class Tailwind.Any.``hover:capitalize`` ] 
-         [ str ("ChangeColor: " +  Vars.Variables.``main-bg-color``) ] //Retrive Css Variable set in document element.
+         [ str ("ChangeColor: " +  VariableTest.Variables.``main-bg-color``) ] //Retrive Css Variable set in document element.
 
 ```
 
 
 # Nuget 
-https://www.nuget.org/packages/Flora.CssProvider/0.7.0
+https://www.nuget.org/packages/Flora.CssProvider/0.7.1
 
 # Getting Started With Test App
 
