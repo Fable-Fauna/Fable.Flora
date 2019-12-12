@@ -174,20 +174,12 @@ let (|Ident|_|) (input : IStream<char>) =
       | _ -> if result = "" then None,false else Some(result,n1),false)
     |> (fun (result,next) -> if result = "" then None else Some(result,next))
 
+let Ident = (|Ident|_|)
 
-let (|Function|_|) =
-    parse {
-      let! id = (|Ident|_|)
-      let! _ = PChar '('
-      return id
-    }
+let (|Function|_|) = Ident .>> PChar '(' 
 
-let (|AtKeyword|_|) =
-    parse {
-      let! _ = PChar '@'
-      let! key = (|Ident|_|)
-      return key
-    }
+
+let (|AtKeyword|_|) = PChar '@' >>. Ident
 
 
 let (|HashToken|_|) (input : IStream<char>) =

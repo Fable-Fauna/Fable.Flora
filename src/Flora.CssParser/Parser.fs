@@ -13,7 +13,6 @@ module CssVaribles =
           | _ -> acc
           ) []
           |> Seq.distinct |> Seq.toList
-       
 
 module ParseShaper =
     open Tokenizer
@@ -27,38 +26,24 @@ module ParseShaper =
 
     and ComponentShape =
         | Preserved of Token
-        | SwiggleBlock of BlockShape
-        | ParenBlock of BlockShape
-        | SquareBlock of BlockShape
+        | CurlyBlock of BlockShape //{}
+        | ParenBlock of BlockShape //()
+        | SquareBlock of BlockShape //[]
         | Function of string * BlockShape
 
     and BlockShape = ComponentShape list
-      
-
-
-
-    let looper fn init =
-        let mutable loop = true
-        let mutable state = init
-        while loop do
-            match fn state with
-            | Some(st), nextState ->
-                state <- st
-                loop <- nextState
-            | _ -> loop <- false
-        state
 
     let rec (|CompShape|_|) (input ) =
         match input with
         | Token.Function(name) :: CompShapeList Token.ParenEnd (inner,left) -> Some(ComponentShape.Function(name,inner),left)
         | Token.SquareStart :: CompShapeList Token.SquareEnd (inner,left) -> Some(ComponentShape.SquareBlock(inner),left)
-        | Token.SwiggleStart :: CompShapeList Token.SwiggleEnd (inner,left) -> Some(ComponentShape.SwiggleBlock(inner),left)
+        | Token.SwiggleStart :: CompShapeList Token.SwiggleEnd (inner,left) -> Some(ComponentShape.CurlyBlock(inner),left)
         | Token.ParenStart :: CompShapeList Token.ParenEnd (inner,left) -> Some(ComponentShape.ParenBlock(inner),left)
         | a :: left -> Some(ComponentShape.Preserved a, left)
         | [ ] -> None
 
     and (|CompShapeList|_|) (terminal : Token) (input : Token list) =
-        looper (fun x ->
+        Stream.looper (fun x ->
             match fst x with
             | [] -> None,false
             | [a] when a = terminal -> Some([],snd x),false
@@ -75,9 +60,8 @@ module ParseShaper =
             Some(RuleShape.At(name,inner,inner2),left)
         | _ -> None
 
-
     let parseShape input : StylesheetShape =
-        looper (fun x ->
+        Stream.looper (fun x ->
             match fst x with
             | [] -> None, false
             | RuleShape(r,left) -> Some(left,(snd x) @ [r]),true
@@ -126,14 +110,12 @@ module SelectorsParser =
         { Element : ElementSelector
           Namespace : NamespaceSelector}
 
-
     and SimpleSelector =
         | Class of string
         | Id of string
         | Attribute of (NamespaceSelector * string) * (Match * string) option //[]
         | Psudo of Psudo
         | Negation of SimpleSelector
-
 
     and NegationArg =
         | Class of string
@@ -145,7 +127,6 @@ module SelectorsParser =
     and SelectorSeq =
         { Type : TypeSelector
           Selectors : SimpleSelector list }
-
 
     type Stylesheet =
         { Rules : Rule list
@@ -159,8 +140,6 @@ module SelectorsParser =
     and SelectorGroup =
         | Single of SelectorSeq
         | Multiple of MultiSelectorSeq
-
-
 
     and Rule =
         | Qualified of SelectorGroup list * BlockShape
@@ -186,8 +165,6 @@ module SelectorsParser =
     let (|Identifier|_|) = function
         | Head (ComponentShape.Preserved(Token.Ident(str)),left) -> Some(str,left)
         | _ -> None
-
-
 
     let (|ElementSelctor|_|) = function
         | Fst (ComponentShape.Preserved(Token.Delim('*'))) left -> Some(ElementSelector.All,left)
@@ -216,7 +193,6 @@ module SelectorsParser =
         | Fst (ComponentShape.Preserved(Token.SubstringMatch)) rest -> Some(Match.Substring,rest)
         | Fst (ComponentShape.Preserved(Token.Delim('='))) rest -> Some(Match.Equal,rest)
         | _ -> None
-
 
     let (|Attribute|_|) = function
         | Head (ComponentShape.SquareBlock(bs),rest) ->

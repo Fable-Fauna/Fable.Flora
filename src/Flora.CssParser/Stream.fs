@@ -139,61 +139,53 @@ type ActiveParser<'a,'t> = IStream<'t> -> ('a * IStream<'t>) option
 
 module ParserBuilder = 
     let Return (x: 'a): ActiveParser<'a,'t> =
-      let p stream = Some(x, stream)
-      in p
+      fun stream -> Some(x, stream)
+      
 
     let Bind (p: ActiveParser<'a,'t>) (f: 'a -> ActiveParser<'b,'t>) : ActiveParser<'b,'t> =
-          let q stream =
-              match p stream with
-              | Some(x, rest) -> (f x) rest
-              | None -> None
-          in q
+      fun stream ->
+        match p stream with
+        | Some(x, rest) -> (f x) rest
+        | None -> None
 
     let Combine (p: ActiveParser<'a,'t>) (p2: ActiveParser<'b,'t>) : ActiveParser<'b,'t> =
-        fun stream ->
-          let result = p stream
-          match result with
-          | Some(_,rest) ->
-            p2 rest
+      fun stream ->
+        match p stream with
+        | Some(_,rest) -> p2 rest
+        | None -> None
+
+    let Either (p1: ActiveParser<'a,'t>) (p2: ActiveParser<'a,'t>) : ActiveParser<'a,'t> =
+      fun stream ->
+        match p1 stream with
+        | None -> p2 stream
+        | res -> res
 
     let (>>=) = Bind
 
-    /// If parser p succeeds returns x as a result.
     let (>>%) p x : ActiveParser<'b,'t> =
           p >>= (fun _ -> Return x)
 
-    /// Applies parsers p1 and p2 returning the result of p2.
     let (>>.) p1 p2 : ActiveParser<'b,'t> =
-          p1 >>= (fun _ -> p2)
+        p1 >>= (fun _ -> p2)
 
-    /// Applies parsers p1 and p2 returning the result of p1.
     let (.>>) p1 p2 : ActiveParser<'a,'t> =
-          p1 >>= (fun x -> p2 >>% x)
-      
-    /// Applies parsers p1 and p2 returning both results.
+        p1 >>= (fun x -> p2 >>% x)
+
     let (.>>.) p1 p2: ActiveParser<'a*'b,'t> =
-          p1 >>= (fun x -> p2 >>= (fun y -> Return (x, y)))
-
-    type ParserBuilder() =
-          member x.Zero () = fun stream -> Some((),stream)
-          member x.Bind(p, f) = Bind p f
-          member x.Return(y) = Return y
-          member inline x.Combine< ^B >(p1 : ActiveParser<unit,'t>, p2 : ActiveParser< ^B,'t>) = p1 >>. p2
-          //member inline x.Combine< ^A >(p1 : ActiveParser< ^A,'t>, p2 : ActiveParser<unit,'t>) = p1 .>> p2
-          //member x.Combine(p1 ,p2) = p1 .>>. p2
-          member x.Delay f = f ()
-
-
-    let parse = new ParserBuilder()
-
-    let Either (p1: ActiveParser<'a,'t>) (p2: ActiveParser<'a,'t>) : ActiveParser<'a,'t> =
-          let p stream =
-              match p1 stream with
-              | None -> p2 stream
-              | res -> res
-          in p
+        p1 >>= (fun x -> p2 >>= (fun y -> Return (x, y)))
 
     let (<|>) = Either
+
+    type ParserBuilder() =
+        member x.Zero () = fun stream -> Some((),stream)
+        member x.Bind(p, f) = Bind p f
+        member x.Return(y) = Return y
+        member inline x.Combine< ^B >(p1 : ActiveParser<unit,'t>, p2 : ActiveParser< ^B,'t>) = p1 >>. p2
+        //member inline x.Combine< ^A >(p1 : ActiveParser< ^A,'t>, p2 : ActiveParser<unit,'t>) = p1 .>> p2
+        //member x.Combine(p1 ,p2) = p1 .>>. p2
+        member x.Delay f = f ()
+
+    let parse = new ParserBuilder()
 
     let Char (c : char) : ActiveParser<char,char> =
       fun stream ->
@@ -240,8 +232,12 @@ module ParserBuilder =
         return ()
       }
 
+//lift looper to mappable
 
-
+type LooperResult<'t> =
+  | Continue
+  | ContinueWith of 't
+  | Break
 
 
 let looper fn init =
