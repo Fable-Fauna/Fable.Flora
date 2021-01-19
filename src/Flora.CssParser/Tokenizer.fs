@@ -325,6 +325,50 @@ let tokenise (input : IStream<char>) =
     //eof
     | Char (chr,left) -> Token.Delim chr, left
 
+let printToken (t : Token) : string =
+    match t with
+    | Token.Whitespace(strs) -> String.Concat strs
+    | Token.Ident(str) -> str
+    | Token.Function(str) -> str
+    | Token.At(str) -> str
+    | Token.Hash(str) -> str
+    | Token.String(str) -> str
+    | Token.Url(str) -> str
+    | Token.Number(nums) ->
+        let mutable str = ""
+        if nums.Number.IsSome then
+            let neg,value = nums.Number.Value
+            if neg then str <- "-"
+            str <- str + value
+        if nums.Decimal.IsSome then
+            str <- str + "." + nums.Decimal.Value
+        if nums.Exponent.IsSome then
+            let neg,value = nums.Exponent.Value
+            str <- str + (if neg then "e-" else "e") + value 
+        str
+        
+    | Token.Dimension -> "dims"
+    | Token.Percentage -> "%"
+    | Token.UnicodeRange -> ""
+    | Token.IncludeMatch -> "~="
+    | Token.DashMatch -> "|="
+    | Token.PrefixMatch -> "^="
+    | Token.SuffixMatch -> "$="
+    | Token.SubstringMatch -> "*="
+    | Token.Column -> "||"
+    | Token.CDO -> "<!--"
+    | Token.CDC -> "-->"
+    | Token.Delim(c) -> string c
+    | Token.Colon -> ":"
+    | Token.SemiColon -> ";"
+    | Token.Comma -> ","
+    | Token.SquareStart -> "["
+    | Token.SquareEnd -> "]"
+    | Token.SwiggleStart -> "{"
+    | Token.SwiggleEnd -> "}"
+    | Token.ParenStart -> "("
+    | Token.ParenEnd -> ")"
+
 let tokenStream (input : IStream<char>) =
     input |> Seq.unfold (fun stream -> 
         if stream.Head().IsNone then None else Some(tokenise stream)

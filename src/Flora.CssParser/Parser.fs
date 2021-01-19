@@ -16,6 +16,7 @@ module CssVaribles =
 
 module ParseShaper =
     open Tokenizer
+    open Stream
 
     type StylesheetShape =
         RuleShape list
@@ -33,42 +34,49 @@ module ParseShaper =
 
     and BlockShape = ComponentShape list
 
-    let rec (|CompShape|_|) (input ) =
-        match input with
-        | Token.Function(name) :: CompShapeList Token.ParenEnd (inner,left) -> Some(ComponentShape.Function(name,inner),left)
-        | Token.SquareStart :: CompShapeList Token.SquareEnd (inner,left) -> Some(ComponentShape.SquareBlock(inner),left)
-        | Token.SwiggleStart :: CompShapeList Token.SwiggleEnd (inner,left) -> Some(ComponentShape.CurlyBlock(inner),left)
-        | Token.ParenStart :: CompShapeList Token.ParenEnd (inner,left) -> Some(ComponentShape.ParenBlock(inner),left)
-        | a :: left -> Some(ComponentShape.Preserved a, left)
-        | [ ] -> None
+    let rec printBlockShape (bs : BlockShape) : string =
+        List.fold (fun acc x ->
+            match x with
+            | Preserved(t) -> acc + printToken t
+            | CurlyBlock(bs2) -> acc + "\n{\n" + printBlockShape bs2 + "\n{\n"  
+            | ParenBlock(bs2) -> acc + "(" + printBlockShape bs2 + ")"
+            | SquareBlock(bs2) -> acc + "[" + printBlockShape bs2 + "]"
+            | Function(fn, bs2) -> acc + fn + "(" + printBlockShape bs2 + ")") "" bs
+    
+    let rec (|CompShape|_|) = function
+        | Head (Token.Function(name), CompShapeList Token.ParenEnd (inner,left)) -> 
+          Some(ComponentShape.Function(name,inner),left)
+        | Head (Token.SquareStart, CompShapeList Token.SquareEnd (inner,left)) -> 
+          Some(ComponentShape.SquareBlock(inner),left)
+        | Head (Token.SwiggleStart, CompShapeList Token.SwiggleEnd (inner,left)) -> 
+          Some(ComponentShape.CurlyBlock(inner),left)
+        | Head (Token.ParenStart, CompShapeList Token.ParenEnd (inner,left)) -> 
+          Some(ComponentShape.ParenBlock(inner),left)
+        | Head (a, left) -> Some(ComponentShape.Preserved a, left)
+        | _ -> None
 
-    and (|CompShapeList|_|) (terminal : Token) (input : Token list) =
-        Stream.looper (fun x ->
-            match fst x with
-            | [] -> None,false
-            | [a] when a = terminal -> Some([],snd x),false
-            | a :: left when a = terminal -> Some(left,snd x),false
-            | CompShape(shape,left) -> Some(left, (snd x) @ [shape]),true
-            | _ -> failwith "broken shaper") (input,[])
-        |> (function | (x,[]) -> None | (x,y) -> Some(y,x))
+    and (|CompShapeList|_|) (terminal : Token) (input : IStream<Token>) =
+        Stream.unfold (function
+            | Head (a,left) when a = terminal -> Unfold.Break,left
+            | CompShape(shape,left) -> Unfold.ContinueWith(shape),left
+            | a when a.Head() = None -> Unfold.Break,a
+            | a -> failwithf "broken shaper %A" (a.Head()) ) input
+        |> (function | ([],s) -> None | (x,s) -> Some(x,s))
 
-    and (|RuleShape|_|) (input) =
-        match input with
+    and (|RuleShape|_|) = function
         | CompShapeList Token.SwiggleStart (inner,CompShapeList Token.SwiggleEnd (inner2, left)) ->
             Some(RuleShape.Qualified(inner,inner2),left)
-        | Token.At(name) :: CompShapeList Token.SwiggleStart (inner,CompShapeList Token.SwiggleEnd (inner2, left)) ->
+        | Head (Token.At(name), CompShapeList Token.SwiggleStart (inner,CompShapeList Token.SwiggleEnd (inner2, left))) ->
             Some(RuleShape.At(name,inner,inner2),left)
         | _ -> None
 
-    let parseShape input : StylesheetShape =
-        Stream.looper (fun x ->
-            match fst x with
-            | [] -> None, false
-            | RuleShape(r,left) -> Some(left,(snd x) @ [r]),true
-            | a :: left -> Some(left,snd x),true //do not preserve tokens not matching rules (TODO: collect comments)
-
-            ) (input,[])
-        |> snd
+    let parseShape (input : IStream<Token>) : StylesheetShape =
+        Stream.unfold (function
+            | RuleShape(r,left) -> Unfold.ContinueWith(r),left
+            | Head (a, left) -> Unfold.Continue,left //do not preserve tokens not matching rules (TODO: collect comments)
+            | s -> Unfold.Break,s
+            ) input
+        |> fst
 
 module SelectorsParser =
     open Tokenizer
@@ -322,7 +330,9 @@ module SelectorsParser =
       let tref = ref (text.ToCharArray())
       let stream = CachelessStream(tref,0) :> IStream<char>
       let tlist = tokenStream stream
+      let tAry = ref (tlist |> List.toArray)
+      let tStream = CachelessStream(tAry,0) :> IStream<Token>
       let variables = CssVaribles.extractCssVariables tlist
-      let pshape = parseShape tlist
+      let pshape = parseShape tStream
       { Rules = parseStylesheet pshape
         Variables = variables }

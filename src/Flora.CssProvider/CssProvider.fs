@@ -43,7 +43,7 @@ module CssProviderHelpers =
                             propertyType = typeof<string>,
                             isStatic = true,
                             getterCode = (fun _ -> Expr.Value cls.ClassName ))
-          valueProp.AddXmlDoc cls.ClassName
+          valueProp.AddXmlDoc cls.Body
           t.AddMember(valueProp)
 
 

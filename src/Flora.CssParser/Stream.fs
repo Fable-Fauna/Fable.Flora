@@ -234,11 +234,32 @@ module ParserBuilder =
 
 //lift looper to mappable
 
-type LooperResult<'t> =
+type Unfold<'t> =
   | Continue
   | ContinueWith of 't
   | Break
+  | BreakWith of 't
 
+let unfold (fn : IStream<'t> -> Unfold<'a> * IStream<'t>) =
+  fun stream ->
+    let mutable loop = true
+    let mutable state = []
+    let mutable s = stream
+    while loop do
+        match fn s with
+        | Continue,stream -> 
+            s <- stream
+        | ContinueWith(item),stream ->
+            state <- List.append state [item]
+            s <- stream
+        | Break,stream -> 
+            loop <- false
+            s <- stream
+        | BreakWith(item),stream ->
+            loop <- false
+            state <- List.append state [item]
+            s <- stream
+    state, s
 
 let looper fn init =
     let mutable loop = true

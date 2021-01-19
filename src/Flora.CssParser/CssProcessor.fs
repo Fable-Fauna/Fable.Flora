@@ -1,5 +1,6 @@
 ﻿module CssProcesser
 
+open CssProvider
 open CssProvider.SelectorsParser
 open System.IO
 
@@ -8,37 +9,39 @@ let processCssGraph (css : Rule list) =
         for x in css do
           match x with
           | Rule.Qualified(sgl,blk) ->
+            let helpText = ParseShaper.printBlockShape blk
             for y in sgl do
               match y with
               | SelectorGroup.Single(sseq) ->
                 for s in sseq.Selectors do
                   match s with
                   | SimpleSelector.Class(cls) ->
-                      yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                      yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls, helpText)
                   | _ -> ()
               | SelectorGroup.Multiple(group) ->
                 for sseq in group.Head :: (group.List |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
                   for s in sseq.Selectors do
                     match s with
                     | SimpleSelector.Class(cls) ->
-                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls)
+                        yield sseq.Type.Element, (cls.Split('-') |> Array.toList, cls, helpText)
                     | _ -> ()
 
           | Rule.At(name,sgl,blk) -> //need at rules name
+            let helpText = ParseShaper.printBlockShape blk
             for y in sgl do
               match y with
               | SelectorGroup.Single(sseq) ->
                 for s in sseq.Selectors do
                   match s with
                   | SimpleSelector.Class(cls) ->
-                      yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls)
+                      yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls, helpText)
                   | _ -> ()
               | SelectorGroup.Multiple(group) ->
                 for sseq in group.Head :: (group.List |> Array.map (fun (comb,sseq) -> sseq) |> Array.toList ) do
                   for s in sseq.Selectors do
                     match s with
                     | SimpleSelector.Class(cls) ->
-                        yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls)
+                        yield sseq.Type.Element, (name :: (cls.Split('-') |> Array.toList), cls, helpText)
                     | _ -> ()
     }
     let n =
@@ -68,20 +71,21 @@ type StyleSheetResult =
   { Graphs : Graph []
     Variables : string [] }
 
-let rec produceGraph (classes :(string list * string) []) : Graph [] =
+let rec produceGraph (classes :(string list * string * string) []) : Graph [] =
     classes
-    |> Seq.groupBy (fst >> List.head)
+    |> Seq.groupBy (fun (x,_,_) -> List.head x)
     |> Seq.map (fun (x,y) ->
         let mutable leaf = None
         let flex =
             y
-            |> Seq.choose (fun (z,lf) ->
+            |> Seq.choose (fun (z,lf,bdy) ->
                 match z.Tail with
-                | [] -> leaf <- Some(lf); None
-                | tail -> Some(tail,lf) )
+                | [] -> leaf <- Some(lf,bdy); None
+                | tail -> Some(tail,lf,bdy) )
             |> Seq.toArray
         match leaf with
-        | Some(n) -> Graph.Class {Name = x; ClassName = n; ToolTip = Some(n); Body = "" }
+        | Some(n,bdy) ->
+            Graph.Class {Name = x; ClassName = n; ToolTip = Some(n); Body = bdy }
         | None -> Graph.Node(x, produceGraph flex)
        )
     |> Seq.toArray
@@ -114,10 +118,10 @@ let processCss (strategy : Strategy) (content : Rule list) : Graph seq =
     content
     |> Seq.collect (function
       | Rule.Qualified(sgl,blk) ->
-        let body = sprintf "%O" blk
+        let body = ParseShaper.printBlockShape blk
         GraphClasses sgl (GraphClass body None (fun x -> x))
       | Rule.At(name,sgl,blk) -> //need at rules name
-        let body = sprintf "%O" blk
+        let body = ParseShaper.printBlockShape blk
         let classes = GraphClasses sgl (GraphClass body None (fun x -> x)) |> Seq.toArray
         seq { yield Graph.Node(name, classes) })
     |> distinctGraph
@@ -125,10 +129,10 @@ let processCss (strategy : Strategy) (content : Rule list) : Graph seq =
     content
     |> Seq.collect (function
       | Rule.Qualified(sgl,blk) ->
-        let body = sprintf "%O" blk
+        let body = ParseShaper.printBlockShape blk
         GraphClasses sgl (GraphClass body None (fun x -> x.Replace("-","_")))
       | Rule.At(name,sgl,blk) -> //need at rules name
-        let body = sprintf "%O" blk
+        let body = ParseShaper.printBlockShape blk
         let classes = GraphClasses sgl (GraphClass body None (fun x -> x.Replace("-","_"))) |> Seq.toArray
         seq { yield Graph.Node("@"+name, classes) })
     |> distinctGraph

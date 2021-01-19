@@ -19,6 +19,8 @@ type Bulma = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna
 
 type Tailwind2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css">
 
+type Tailwind3 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/tailwind.css",  naming = Flora.CssProvider.NamingMode.SnakeCase>
+
 type Bulma2 = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bulma.css">
 
 type Bootstrap = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/Fable.Flora/test/bootstrap.css", naming = Flora.CssProvider.NamingMode.SnakeCase>
@@ -28,6 +30,8 @@ type Vars = Flora.Stylesheet<"C:/Users/Orlando/Desktop/Projects2019/Fable-Fauna/
 let c1 = Bulma.Any.tile
 let c2 = Bootstrap.alert_danger
 
+let c3 = Tailwind.Any.bg.blue
+let c4 = Tailwind2.flex
 type Model = int
 
 type Msg =
