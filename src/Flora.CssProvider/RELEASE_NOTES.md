@@ -1,4 +1,9 @@
+### 0.8.0
+
+* Add class body as xml doc
+
 ### 0.7.1
+
 * Fix snake case strategy
 * Fix property overloading issue
 * Fix FSharp.Core versioning?

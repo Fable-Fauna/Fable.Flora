@@ -131,10 +131,10 @@ let pushNuget (releaseNotes: ReleaseNotes.ReleaseNotes) (projFile: string) =
     let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
     let projDir = Path.GetDirectoryName(projFile)
 
-    // if needsPublishing versionRegex releaseNotes projFile then
-    //     (versionRegex, projFile)
-    //     ||> Util.replaceLines (fun line _ ->
-    //                                 versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
+    if needsPublishing versionRegex releaseNotes projFile then
+        (versionRegex, projFile)
+        ||> Util.replaceLines (fun line _ ->
+                                    versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
 
     let nugetKey =
         match  Environment.environVarOrNone "NUGET_KEY" with
@@ -166,7 +166,7 @@ Target.create "CreateNugets2" (fun _ ->
 )
 
 Target.create "PublishNugets" (fun _ ->
-    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; "src/Flora.CssParser/Flora.CssParser.fsproj"]
+    ["src/Flora.CssProvider/Flora.CssProvider.fsproj"; ] //"src/Flora.CssParser/Flora.CssParser.fsproj"
     |> Seq.map (fun proj -> proj, (IO.Path.GetDirectoryName proj) </> "RELEASE_NOTES.md" |> ReleaseNotes.load)
     |> Seq.iter (fun (proj,notes) -> pushNuget notes proj)
 )
